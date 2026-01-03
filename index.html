@@ -130,18 +130,8 @@
 <script src="voice/tts.js"></script>
 <script src="voice/stt.js"></script>
 
-  <script>
-/* ===== APP RESUME HANDLER ===== */
-document.addEventListener("visibilitychange", () => {
-  if (!document.hidden) {
-    const status = document.getElementById("appStatus");
-    status.textContent = "अंजली तैयार है — शुरू करें दबाएँ";
-  }
-});
-  </script>
-
-
-  <script>
+  
+<script>
 /* ==================================================
    INDEX CONVERSATION CONTROLLER (FINAL • STABLE)
    ================================================== */
@@ -176,7 +166,7 @@ function startConversation() {
     }
   });
 
-  // ⏳ 2 मिनट का soft reminder (सोचने का समय)
+  // ⏳ 2 मिनट का soft reminder
   clearInterval(remindTimer);
   remindTimer = setInterval(() => {
     if (
@@ -186,7 +176,7 @@ function startConversation() {
     ) {
       TTS.speak("मैं आपसे और बात करना चाहती हूँ।");
     }
-  }, 120000); // ⏱️ 2 मिनट
+  }, 120000); // 2 मिनट
 }
 
 /* ---------- WAIT FOR TTS END ---------- */
@@ -212,9 +202,25 @@ window.onAnjaliAnswered = function () {
     }
   }, 800);
 };
+
+/* ==================================================
+   ✅ APP RESUME HANDLER (यही सही स्थान है)
+   ================================================== */
+document.addEventListener("visibilitychange", () => {
+  if (!document.hidden) {
+    const status = document.getElementById("appStatus");
+    if (status) {
+      status.textContent = "अंजली तैयार है — शुरू करें दबाएँ";
+    }
+    conversationActive = false; // सुरक्षित reset
+  }
+});
 </script>
+
 <script>
+/* ---------- BUTTON BINDINGS (ONLY ONCE) ---------- */
 document.getElementById("startBtn").onclick = startConversation;
+
 document.getElementById("adminBtn").onclick = () => {
   window.location.href = "admin.html";
 };
