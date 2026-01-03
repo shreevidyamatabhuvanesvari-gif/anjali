@@ -129,14 +129,21 @@
 <script src="voice/tts.js"></script>
 <script src="voice/stt.js"></script>
 
-<!-- ================= SAFE CONVERSATION LOOP ================= -->
-<script>
+
+  <script>
+/* ==================================================
+   INDEX CONVERSATION CONTROLLER (FINAL • STABLE)
+   ================================================== */
+
 let audioUnlocked = false;
 let conversationActive = false;
+let remindTimer = null;
 
+/* ---------- START CONVERSATION ---------- */
 function startConversation() {
   const status = document.getElementById("appStatus");
 
+  // 🔓 Audio unlock (केवल पहली बार)
   if (window.TTS && !audioUnlocked) {
     TTS.init();
     audioUnlocked = true;
@@ -145,89 +152,33 @@ function startConversation() {
   conversationActive = true;
   status.textContent = "अंजली बोल रही है…";
 
-  TTS.speak("मैं सुन रही हूँ। आप प्रश्न बोल सकते हैं।");
+  // 🔊 अंजली बोले
+  if (window.TTS) {
+    TTS.speak("मैं सुन रही हूँ। आप मुझसे बात कर सकते हैं।");
+  }
 
+  // 🎤 बोलना खत्म होते ही सुनना
   waitForSpeechEnd(() => {
     if (window.STT && conversationActive) {
       status.textContent = "मैं सुन रही हूँ…";
       STT.start();
     }
   });
-}
 
-function waitForSpeechEnd(cb) {
-  const i = setInterval(() => {
-    if (!speechSynthesis.speaking) {
-      clearInterval(i);
-      cb();
-    }
-  }, 120);
-}
-
-// STT → Answer → फिर सुनना
-window.onAnjaliAnswered = function () {
-  if (!conversationActive) return;
-  setTimeout(() => {
-    const status = document.getElementById("appStatus");
-    status.textContent = "मैं सुन रही हूँ…";
-    if (window.STT) STT.start();
-  }, 600);
-};
-
-// ✅ ONLY ONE BUTTON HANDLER
-document.getElementById("startBtn").onclick = startConversation;
-
-// Admin
-document.getElementById("adminBtn").onclick = () => {
-  window.location.href = "admin.html";
-};
-</script>
-
-<!-- ================= SAFE CONVERSATION LOOP (FINAL) ================= -->
-<script>
-window.conversationActive = false;
-let audioUnlocked = false;
-let remindTimer = null;
-
-function startConversation() {
-  const status = document.getElementById("appStatus");
-
-  // 🔓 Audio unlock (एक बार)
-  if (window.TTS && !audioUnlocked) {
-    TTS.init();
-    audioUnlocked = true;
-  }
-
-  window.conversationActive = true;
-  status.textContent = "अंजली बोल रही है…";
-
-  // 🔊 अंजली बोले
-  if (window.TTS) {
-    TTS.speak("मैं सुन रही हूँ। आप मुझसे बात कर सकते हैं।");
-  }
-
-  // ⏳ बोलना खत्म होते ही सुनना
-  waitForSpeechEnd(() => {
-    if (window.STT && window.conversationActive) {
-      status.textContent = "मैं सुन रही हूँ…";
-      STT.start();
-    }
-  });
-
-  // 🔁 याद दिलाने वाला soft loop (30 सेकंड)
+  // ⏳ 2 मिनट का soft reminder (सोचने का समय)
   clearInterval(remindTimer);
   remindTimer = setInterval(() => {
     if (
-      window.conversationActive &&
+      conversationActive &&
       window.TTS &&
       !speechSynthesis.speaking
     ) {
       TTS.speak("मैं आपसे और बात करना चाहती हूँ।");
     }
-  }, 30000);
+  }, 120000); // ⏱️ 2 मिनट
 }
 
-// 🔍 TTS समाप्ति पहचान
+/* ---------- WAIT FOR TTS END ---------- */
 function waitForSpeechEnd(callback) {
   const check = setInterval(() => {
     if (!speechSynthesis.speaking) {
@@ -237,25 +188,27 @@ function waitForSpeechEnd(callback) {
   }, 120);
 }
 
-// 🔁 STT → Answer → फिर सुनना
+/* ---------- AFTER ANSWER → LISTEN AGAIN ---------- */
 window.onAnjaliAnswered = function () {
-  if (!window.conversationActive) return;
+  if (!conversationActive) return;
 
   const status = document.getElementById("appStatus");
   status.textContent = "मैं सुन रही हूँ…";
 
   setTimeout(() => {
-    if (window.STT && window.conversationActive) {
+    if (window.STT && conversationActive) {
       STT.start();
     }
-  }, 500);
+  }, 800);
 };
 
-// ▶️ Buttons
+/* ---------- BUTTON BINDINGS (ONLY ONCE) ---------- */
 document.getElementById("startBtn").onclick = startConversation;
-document.getElementById("adminBtn").onclick = () => {
+
+document.getElementById("adminBtn").onclick = function () {
   window.location.href = "admin.html";
 };
 </script>
+  
 </body>
   </html>
