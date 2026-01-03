@@ -189,18 +189,27 @@ function waitForSpeechEnd(callback) {
   }, 120);
 }
 
-/* ---------- AFTER ANSWER → LISTEN AGAIN ---------- */
+/* ---------- AFTER ANSWER → LISTEN AGAIN (FINAL) ---------- */
 window.onAnjaliAnswered = function () {
   if (!conversationActive) return;
 
   const status = document.getElementById("appStatus");
-  status.textContent = "मैं सुन रही हूँ…";
+  status.textContent = "अंजली सोच रही है…";
 
-  setTimeout(() => {
+  waitForSpeechEnd(() => {
+
+    // ❗ ReasoningEngine readiness guard
+    if (!window.__REASONING_READY__) {
+      status.textContent = "अंजली सोच रही है… कृपया एक क्षण प्रतीक्षा करें";
+      setTimeout(startConversation, 600);
+      return;
+    }
+
     if (window.STT && conversationActive) {
+      status.textContent = "मैं सुन रही हूँ…";
       STT.start();
     }
-  }, 800);
+  });
 };
 
 /* ==================================================
