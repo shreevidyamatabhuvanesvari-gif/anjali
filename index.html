@@ -130,6 +130,16 @@
 <script src="voice/tts.js"></script>
 <script src="voice/stt.js"></script>
 
+  <script>
+/* ===== APP RESUME HANDLER ===== */
+document.addEventListener("visibilitychange", () => {
+  if (!document.hidden) {
+    const status = document.getElementById("appStatus");
+    status.textContent = "अंजली तैयार है — शुरू करें दबाएँ";
+  }
+});
+  </script>
+
 
   <script>
 /* ==================================================
