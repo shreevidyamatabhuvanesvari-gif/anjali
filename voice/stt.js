@@ -47,38 +47,50 @@
       console.error("STT start error", e);
     }
   }
+/* ---------- RESULT ---------- */
+recognition.onresult = async function (event) {
+  active = false;
 
-  /* ---------- RESULT ---------- */
-  recognition.onresult = async function (event) {
-    const transcript = event.results[0][0].transcript.trim();
-    console.log("👂 Heard:", transcript);
+  const transcript = event.results[0][0].transcript.trim();
+  console.log("👂 Heard:", transcript);
 
-    // 🧠 उत्तर निकालो
-    let reply = "इस प्रश्न का उत्तर मेरे ज्ञान में नहीं है।";
+  // 🧠 Default fallback
+  let reply = "इस प्रश्न का उत्तर मेरे ज्ञान में नहीं है।";
 
-    if (window.AnswerEngine) {
+  try {
+    // 1️⃣ Reasoning Engine (FIRST PRIORITY)
+    if (window.ReasoningEngine) {
+      reply = await ReasoningEngine.reason(transcript);
+
+    // 2️⃣ Answer Engine (SECOND PRIORITY)
+    } else if (window.AnswerEngine) {
       reply = await AnswerEngine.answer(transcript);
     }
 
-    // 🔊 उत्तर बोलो
-    if (window.TTS) {
-      TTS.speak(reply);
-    }
+  } catch (e) {
+    console.error("Answer error:", e);
+    reply = "उत्तर देने में मुझे थोड़ी कठिनाई हुई।";
+  }
 
-    // index.html को संकेत
-    if (window.onAnjaliAnswered) {
-      window.onAnjaliAnswered();
-    }
+  // 🔊 उत्तर बोलो
+  if (window.TTS) {
+    TTS.speak(reply);
+  }
 
-    // 🔁 उत्तर के बाद दोबारा सुनना
-    if (keepAlive) {
-      waitForSpeechEnd(() => {
-        if (keepAlive && !active) {
-          start();
-        }
-      });
-    }
-  };
+  // 🔁 index.html को संकेत (UI / status)
+  if (window.onAnjaliAnswered) {
+    window.onAnjaliAnswered();
+  }
+
+  // 🔁 ⭐ NON-STOP CONVERSATION CORE ⭐
+  if (keepAlive) {
+    waitForSpeechEnd(() => {
+      if (keepAlive && !active) {
+        start();   // 👂 फिर से सुनना
+      }
+    });
+  }
+};
 
   /* ---------- END ---------- */
   recognition.onend = function () {
