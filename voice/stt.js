@@ -1,9 +1,12 @@
 /* =========================================================
    voice/stt.js
-   Role: Idle-based Continuous Listening
-   Logic:
-   - User बोले → timer reset
-   - 2 मिनट तक कुछ न बोले → mic बंद
+   Role: Idle-based Continuous Listening (USER-DRIVEN)
+   Rules:
+   1. Answer only ONCE per question
+   2. After answering → stay silent
+   3. Mic stays open for 2 minutes
+   4. Any user speech resets 2-min timer
+   5. Close mic only after full 2 min silence
    ========================================================= */
 
 (function (window) {
@@ -20,11 +23,11 @@
   const recognition = new SpeechRecognition();
   recognition.lang = "hi-IN";
   recognition.interimResults = false;
-  recognition.continuous = false; // browser limit
+  recognition.continuous = false; // browser constraint
 
-  let active = false;
-  let listening = false;
-  let idleTimer = null;
+  let active = false;          // recognition running
+  let listening = false;       // conversation alive
+  let idleTimer = null;        // silence timer
 
   const IDLE_LIMIT = 120000; // 2 minutes
 
@@ -34,18 +37,17 @@
     idleTimer = setTimeout(() => {
       listening = false;
       recognition.stop();
-      console.log("⏹️ Mic closed (idle timeout)");
+      console.log("⏹️ Mic closed after 2 minutes of silence");
     }, IDLE_LIMIT);
   }
 
   /* ---------- START LISTENING ---------- */
   function start() {
-    if (active) return;
+    if (active || !listening) return;
 
     try {
       recognition.start();
       active = true;
-      listening = true;
       resetIdleTimer();
       console.log("🎤 Listening...");
     } catch (e) {
@@ -53,14 +55,14 @@
     }
   }
 
-  /* ---------- RESULT ---------- */
+  /* ---------- RESULT (USER SPOKE) ---------- */
   recognition.onresult = async function (event) {
     active = false;
 
     const transcript = event.results[0][0].transcript.trim();
     console.log("👂 Heard:", transcript);
 
-    // 🔁 यूज़र बोला → idle reset
+    // 🔁 User spoke → reset silence timer
     resetIdleTimer();
 
     let reply = "इस प्रश्न का उत्तर मेरे ज्ञान में नहीं है।";
@@ -76,12 +78,12 @@
       reply = "उत्तर देने में मुझे कठिनाई हुई।";
     }
 
-    // 🔊 एक बार उत्तर
+    // 🔊 Speak answer ONCE
     if (window.TTS) {
       TTS.speak(reply);
     }
 
-    // 🔁 उत्तर के बाद चुपचाप सुनते रहो
+    // 🔕 After answer → SILENT, only listen
     waitForSpeechEnd(() => {
       if (listening) {
         start();
@@ -92,6 +94,8 @@
   /* ---------- END ---------- */
   recognition.onend = function () {
     active = false;
+
+    // Restart only if conversation alive and user silence < 2 min
     if (listening && !speechSynthesis.speaking) {
       setTimeout(start, 300);
     }
@@ -115,6 +119,11 @@
   }
 
   /* ---------- EXPOSE ---------- */
-  window.STT = { start };
+  window.STT = {
+    start: function () {
+      listening = true;
+      start();
+    }
+  };
 
 })(window);
