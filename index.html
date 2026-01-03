@@ -132,105 +132,53 @@
 
   
 <script>
-/* ==================================================
-   INDEX CONVERSATION CONTROLLER (FINAL • STABLE)
-   ================================================== */
+/* =========================================
+   STABLE CONVERSATION CONTROLLER
+   (NO LOOPS • NO AUTO SPEAK • SAFE)
+   ========================================= */
 
 let audioUnlocked = false;
 let conversationActive = false;
-let remindTimer = null;
 
-/* ---------- START CONVERSATION ---------- */
+/* ---------- START BUTTON ---------- */
 function startConversation() {
   const status = document.getElementById("appStatus");
 
-  // 🔓 Audio unlock (केवल पहली बार)
+  // 🔓 Audio unlock (mobile safe)
   if (window.TTS && !audioUnlocked) {
     TTS.init();
     audioUnlocked = true;
   }
 
   conversationActive = true;
-  status.textContent = "अंजली बोल रही है…";
+  status.textContent = "मैं सुन रही हूँ…";
 
-  // 🔊 अंजली बोले
-  if (window.TTS) {
-    TTS.speak("मैं सुन रही हूँ। आप मुझसे बात कर सकते हैं।");
+  // 🎤 सीधे सुनना शुरू
+  if (window.STT) {
+    STT.start();
   }
-
-  // 🎤 बोलना खत्म होते ही सुनना
-  waitForSpeechEnd(() => {
-    if (window.STT && conversationActive) {
-      status.textContent = "मैं सुन रही हूँ…";
-      STT.start();
-    }
-  });
-
-  // ⏳ 2 मिनट का soft reminder
-  clearInterval(remindTimer);
-  remindTimer = setInterval(() => {
-    if (
-      conversationActive &&
-      window.TTS &&
-      !speechSynthesis.speaking
-    ) {
-      TTS.speak("मैं आपसे और बात करना चाहती हूँ।");
-    }
-  }, 120000); // 2 मिनट
 }
 
-/* ---------- WAIT FOR TTS END ---------- */
-function waitForSpeechEnd(callback) {
-  const check = setInterval(() => {
-    if (!speechSynthesis.speaking) {
-      clearInterval(check);
-      callback();
-    }
-  }, 120);
-}
-
-/* ---------- AFTER ANSWER → LISTEN AGAIN (FINAL) ---------- */
+/* ---------- AFTER ANSWER ---------- */
+/* यह function voice/stt.js से call होता है */
 window.onAnjaliAnswered = function () {
   if (!conversationActive) return;
 
   const status = document.getElementById("appStatus");
-  status.textContent = "अंजली सोच रही है…";
+  status.textContent = "मैं सुन रही हूँ…";
 
-  waitForSpeechEnd(() => {
-
-    // ❗ ReasoningEngine readiness guard
-    if (!window.__REASONING_READY__) {
-      status.textContent = "अंजली सोच रही है… कृपया एक क्षण प्रतीक्षा करें";
-      setTimeout(startConversation, 600);
-      return;
-    }
-
+  // ⏱️ थोड़ा gap ताकि overlap न हो
+  setTimeout(() => {
     if (window.STT && conversationActive) {
-      status.textContent = "मैं सुन रही हूँ…";
       STT.start();
     }
-  });
+  }, 500);
 };
 
-/* ==================================================
-   ✅ APP RESUME HANDLER (यही सही स्थान है)
-   ================================================== */
-document.addEventListener("visibilitychange", () => {
-  if (!document.hidden) {
-    const status = document.getElementById("appStatus");
-    if (status) {
-      status.textContent = "अंजली तैयार है — शुरू करें दबाएँ";
-    }
-    conversationActive = false; // सुरक्षित reset
-  }
-});
-</script>
-
-<script>
 /* ---------- BUTTON BINDINGS (ONLY ONCE) ---------- */
 document.getElementById("startBtn").onclick = startConversation;
 
-document.getElementById("adminBtn").onclick = () => {
+document.getElementById("adminBtn").onclick = function () {
   window.location.href = "admin.html";
 };
 </script>
