@@ -1,0 +1,25 @@
+{
+  "name": "अंजली",
+  "short_name": "अंजली",
+  "description": "अंजली — स्नेहपूर्ण, समझदार और संवादात्मक AI सहचरी",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#fff3ea",
+  "theme_color": "#8b2d2d",
+  "lang": "hi-IN",
+
+  "icons": [
+    {
+      "src": "icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}
