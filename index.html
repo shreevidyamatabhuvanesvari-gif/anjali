@@ -201,11 +201,10 @@ window.onAnjaliAnswered = function () {
     }
   }, 800);
 };
-
-/* ---------- BUTTON BINDINGS (ONLY ONCE) ---------- */
+</script>
+<script>
 document.getElementById("startBtn").onclick = startConversation;
-
-document.getElementById("adminBtn").onclick = function () {
+document.getElementById("adminBtn").onclick = () => {
   window.location.href = "admin.html";
 };
 </script>
