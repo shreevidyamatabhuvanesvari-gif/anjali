@@ -1,7 +1,7 @@
 /* =========================================================
    core/ReasoningEngine.js
    Role: Modern Offline Reasoning + Answer Synthesis
-   RAM Profile: ~20–40 MB worst case (safe under 150 MB)
+   RAM Profile: ~20–40 MB (bounded, safe under 150 MB)
    ========================================================= */
 
 (function (window) {
@@ -14,16 +14,16 @@
 
   /* ---------- CONFIG ---------- */
   const MAX_KNOWLEDGE_SCAN = 3000;   // hard upper bound
-  const MAX_CONTEXT_TURNS = 6;
+  const MAX_CONTEXT_TURNS  = 6;
 
   const STOP_WORDS = [
     "क्या","है","हैं","कैसे","क्यों","कब","कहाँ",
     "का","की","के","से","में","पर","और","तो","भी"
   ];
 
-  /* ---------- UTILITIES ---------- */
+  /* ---------- TEXT UTILITIES ---------- */
   function normalize(text) {
-    return text
+    return String(text || "")
       .toLowerCase()
       .replace(/[^\u0900-\u097F\s]/g, "")
       .trim();
@@ -35,13 +35,13 @@
       .filter(w => w.length > 1 && !STOP_WORDS.includes(w));
   }
 
-  /* ---------- CONTEXT MEMORY (LIGHT) ---------- */
+  /* ---------- LIGHT CONTEXT BUFFER (RAM SAFE) ---------- */
   const contextBuffer = [];
 
   function pushContext(question, answer) {
     contextBuffer.push({
       q: normalize(question),
-      a: answer
+      a: String(answer || "")
     });
     if (contextBuffer.length > MAX_CONTEXT_TURNS) {
       contextBuffer.shift();
@@ -50,11 +50,11 @@
 
   function contextBiasScore(keywords) {
     let score = 0;
-    contextBuffer.forEach(turn => {
-      keywords.forEach(k => {
+    for (const turn of contextBuffer) {
+      for (const k of keywords) {
         if (turn.q.includes(k)) score += 0.5;
-      });
-    });
+      }
+    }
     return score;
   }
 
@@ -67,36 +67,40 @@
     await KnowledgeBase.init();
     const all = await KnowledgeBase.getAll();
 
-    if (!all || all.length === 0) {
+    if (!Array.isArray(all) || all.length === 0) {
       return "मेरे पास अभी पर्याप्त ज्ञान नहीं है।";
     }
 
     const qNorm = normalize(questionText);
     const qKeys = extractKeywords(questionText);
 
-    /* ---------- 1️⃣ DIRECT MATCH ---------- */
+    /* ---------- 1️⃣ DIRECT / SUBSTRING MATCH ---------- */
     for (let i = 0; i < all.length && i < MAX_KNOWLEDGE_SCAN; i++) {
       const kq = normalize(all[i].question);
+      if (!kq) continue;
+
       if (qNorm.includes(kq) || kq.includes(qNorm)) {
         pushContext(questionText, all[i].answer);
         return all[i].answer;
       }
     }
 
-    /* ---------- 2️⃣ SCORED SEMANTIC MATCH ---------- */
-    let best = null;
+    /* ---------- 2️⃣ SEMANTIC SCORING ---------- */
+    let best      = null;
     let bestScore = 0;
 
     for (let i = 0; i < all.length && i < MAX_KNOWLEDGE_SCAN; i++) {
       const k = all[i];
       const kKeys = extractKeywords(k.question);
 
-      let score = 0;
-      qKeys.forEach(qw => {
-        if (kKeys.includes(qw)) score += 1;
-      });
+      if (kKeys.length === 0) continue;
 
-      // context bias
+      let score = 0;
+      for (const qw of qKeys) {
+        if (kKeys.includes(qw)) score += 1;
+      }
+
+      // context influence (bounded)
       score += contextBiasScore(qKeys);
 
       if (score > bestScore) {
@@ -119,14 +123,14 @@
     return fallback;
   }
 
-  /* ---------- EXPOSE ---------- */
+  /* ---------- EXPOSE (READ-ONLY) ---------- */
   Object.defineProperty(window, "ReasoningEngine", {
     value: { reason },
     writable: false,
     configurable: false
   });
 
-  // readiness flag (for index / stt coordination)
+  // readiness flag (STT / Index coordination)
   window.__REASONING_READY__ = true;
 
 })(window);
