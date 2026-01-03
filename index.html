@@ -182,6 +182,45 @@ document.getElementById("adminBtn").onclick = () => {
   window.location.href = "admin.html";
 };
 </script>
+
+  <script>
+window.onAnjaliAnswered = function () {
+  if (!conversationActive) return;
+
+  const status = document.getElementById("appStatus");
+
+  const TOTAL_WAIT = 120000;     // ⏱️ 2 मिनट
+  const REMINDER_GAP = 15000;    // ⏱️ हर 15 सेकंड
+  let elapsed = 0;
+
+  status.textContent = "मैं यहीं हूँ…";
+
+  // 🔁 अपनेपन वाला reminder loop
+  const reminderTimer = setInterval(() => {
+
+    // अगर user बीच में बोल दे → तुरंत सुनना
+    if (window.STT && !speechSynthesis.speaking) {
+      STT.start();
+    }
+
+    if (window.TTS) {
+      TTS.speak(
+        "मैं आपसे और बात करना चाहती हूँ। कृपया मुझसे बात करें।"
+      );
+    }
+
+    elapsed += REMINDER_GAP;
+
+    // ⏹️ 2 मिनट पूरे
+    if (elapsed >= TOTAL_WAIT) {
+      clearInterval(reminderTimer);
+      status.textContent = "मैं सुन रही हूँ…";
+      if (window.STT) STT.start();
+    }
+
+  }, REMINDER_GAP);
+};
+</script>
 <!-- ================= END ================= -->
 
 </body>
