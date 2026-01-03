@@ -1,7 +1,7 @@
 /* =========================================================
    core/ReasoningEngine.js
-   Role: Modern Offline Reasoning + Answer Synthesis
-   RAM Profile: ~20–40 MB (bounded, safe under 150 MB)
+   Role: Deep Offline Reasoning + Contextual Answer Synthesis
+   RAM Profile: ~30–50 MB (bounded, safe under 150 MB)
    ========================================================= */
 
 (function (window) {
@@ -13,12 +13,44 @@
   }
 
   /* ---------- CONFIG ---------- */
-  const MAX_KNOWLEDGE_SCAN = 3000;   // hard upper bound
+  const MAX_KNOWLEDGE_SCAN = 3000;
   const MAX_CONTEXT_TURNS  = 6;
 
+  /* ---------- संकेत शब्द ---------- */
+
+  // 🔹 मुख्य प्रश्न संकेत (High Priority)
+  const CORE_SIGNALS = [
+    "क्या","कौन","कहाँ","कब","कैसे","क्यों",
+    "किस","किसका","किसकी","किससे",
+    "यदि","तो","भी"
+  ];
+
+  // 🔹 बातचीत दिशा / follow-up संकेत
+  const FLOW_SIGNALS = [
+    "और","फिर","उसके बाद","इसके बाद",
+    "इसमें","उसमें","आगे","साथ ही"
+  ];
+
+  // 🔹 भाव / अनिश्चितता संकेत
+  const SOFT_SIGNALS = [
+    "शायद","संभवतः","लगता","प्रतीत","हो सकता","अनुमान",
+    "अरे","अच्छा","ठीक","हाँ","नहीं","ओह","सुनो","देखो","बताओ"
+  ];
+
+  // 🔹 गौण लेकिन महत्त्वपूर्ण संकेत (ignore नहीं करने हैं)
+  const SECONDARY_SIGNALS = [
+    "कितना","कितनी","इसके अलावा","भी तो",
+    "इसी कारण","परिणामस्वरूप","इस वजह से","अतः",
+    "जैसा","वैसा","जैसे","वैसे","तुलना","के मुकाबले",
+    "से बेहतर","से कम","क्योंकि","इसलिए",
+    "ही","ही तो","ही नहीं","अवश्य","निश्चय"
+  ];
+
   const STOP_WORDS = [
-    "क्या","है","हैं","कैसे","क्यों","कब","कहाँ",
-    "का","की","के","से","में","पर","और","तो","भी"
+    ...CORE_SIGNALS,
+    ...FLOW_SIGNALS,
+    ...SOFT_SIGNALS,
+    "है","हैं","था","थे","में","पर","से","का","की","के"
   ];
 
   /* ---------- TEXT UTILITIES ---------- */
@@ -35,24 +67,23 @@
       .filter(w => w.length > 1 && !STOP_WORDS.includes(w));
   }
 
-  /* ---------- LIGHT CONTEXT BUFFER (RAM SAFE) ---------- */
-  const contextBuffer = [];
-
-  function pushContext(question, answer) {
-    contextBuffer.push({
-      q: normalize(question),
-      a: String(answer || "")
-    });
-    if (contextBuffer.length > MAX_CONTEXT_TURNS) {
-      contextBuffer.shift();
-    }
+  function containsAny(text, list) {
+    return list.some(w => text.includes(w));
   }
 
-  function contextBiasScore(keywords) {
+  /* ---------- CONTEXT HELPERS ---------- */
+  function getContext() {
+    return window.ContextMemory
+      ? ContextMemory.getRecent(MAX_CONTEXT_TURNS)
+      : [];
+  }
+
+  function contextBiasScore(keywords, context) {
     let score = 0;
-    for (const turn of contextBuffer) {
+    for (const turn of context) {
+      const tq = normalize(turn.question || "");
       for (const k of keywords) {
-        if (turn.q.includes(k)) score += 0.5;
+        if (tq.includes(k)) score += 0.6;
       }
     }
     return score;
@@ -71,37 +102,52 @@
       return "मेरे पास अभी पर्याप्त ज्ञान नहीं है।";
     }
 
-    const qNorm = normalize(questionText);
-    const qKeys = extractKeywords(questionText);
+    const qNorm   = normalize(questionText);
+    const qKeys   = extractKeywords(questionText);
+    const context = getContext();
 
-    /* ---------- 1️⃣ DIRECT / SUBSTRING MATCH ---------- */
+    const hasFollowUp =
+      containsAny(qNorm, FLOW_SIGNALS) ||
+      context.length > 0 && qKeys.length < 3;
+
+    /* ---------- 1️⃣ DIRECT MATCH ---------- */
     for (let i = 0; i < all.length && i < MAX_KNOWLEDGE_SCAN; i++) {
       const kq = normalize(all[i].question);
       if (!kq) continue;
 
       if (qNorm.includes(kq) || kq.includes(qNorm)) {
-        pushContext(questionText, all[i].answer);
+        if (window.ContextMemory) {
+          ContextMemory.add({ question: questionText, answer: all[i].answer });
+        }
         return all[i].answer;
       }
     }
 
-    /* ---------- 2️⃣ SEMANTIC SCORING ---------- */
-    let best      = null;
+    /* ---------- 2️⃣ CONTEXTUAL + SEMANTIC SCORING ---------- */
+    let best = null;
     let bestScore = 0;
 
     for (let i = 0; i < all.length && i < MAX_KNOWLEDGE_SCAN; i++) {
       const k = all[i];
       const kKeys = extractKeywords(k.question);
-
       if (kKeys.length === 0) continue;
 
       let score = 0;
+
+      // keyword overlap
       for (const qw of qKeys) {
         if (kKeys.includes(qw)) score += 1;
       }
 
-      // context influence (bounded)
-      score += contextBiasScore(qKeys);
+      // context influence
+      score += contextBiasScore(qKeys, context);
+
+      // follow-up boost
+      if (hasFollowUp) score += 1;
+
+      // reasoning signal boost
+      if (containsAny(qNorm, CORE_SIGNALS)) score += 0.5;
+      if (containsAny(qNorm, SECONDARY_SIGNALS)) score += 0.3;
 
       if (score > bestScore) {
         bestScore = score;
@@ -110,27 +156,31 @@
     }
 
     if (best && bestScore > 0) {
-      pushContext(questionText, best.answer);
+      if (window.ContextMemory) {
+        ContextMemory.add({ question: questionText, answer: best.answer });
+      }
       return best.answer;
     }
 
     /* ---------- 3️⃣ HUMAN-STYLE FALLBACK ---------- */
     const fallback =
-      "इस प्रश्न पर मेरा सीधा ज्ञान नहीं है, " +
-      "लेकिन यदि आप थोड़ा और स्पष्ट करें तो मैं बेहतर समझ पाऊँगी।";
+      hasFollowUp
+        ? "आप उसी विषय को आगे बढ़ा रहे हैं। कृपया थोड़ा और स्पष्ट करें।"
+        : "इस प्रश्न पर मेरा सीधा ज्ञान नहीं है, लेकिन मैं इसे समझने की कोशिश कर रही हूँ।";
 
-    pushContext(questionText, fallback);
+    if (window.ContextMemory) {
+      ContextMemory.add({ question: questionText, answer: fallback });
+    }
     return fallback;
   }
 
-  /* ---------- EXPOSE (READ-ONLY) ---------- */
+  /* ---------- EXPOSE ---------- */
   Object.defineProperty(window, "ReasoningEngine", {
     value: { reason },
     writable: false,
     configurable: false
   });
 
-  // readiness flag (STT / Index coordination)
   window.__REASONING_READY__ = true;
 
 })(window);
