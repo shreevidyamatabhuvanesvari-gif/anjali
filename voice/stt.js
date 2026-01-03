@@ -24,7 +24,7 @@
   let listening = false;     // conversation session alive
   let idleTimer = null;      // silence timer
 
-  const IDLE_LIMIT = 120000; // 2 minutes (user-defined)
+  const IDLE_LIMIT = 120000; // 2 minutes
 
   /* ---------- IDLE TIMER ---------- */
   function resetIdleTimer() {
@@ -63,6 +63,11 @@
 
     console.log("👂 Heard:", transcript);
 
+    // 🧠 USER CONTEXT ADD
+    if (window.ContextMemory) {
+      ContextMemory.addUserUtterance(transcript);
+    }
+
     // 🔁 User spoke → reset silence timer
     resetIdleTimer();
 
@@ -77,6 +82,11 @@
     } catch (e) {
       console.error("Answer error:", e);
       reply = "उत्तर देने में मुझे कठिनाई हुई।";
+    }
+
+    // 🧠 ANJALI REPLY CONTEXT ADD
+    if (window.ContextMemory) {
+      ContextMemory.addAnjaliReply(reply);
     }
 
     // 🔊 Speak answer ONLY ONCE
@@ -96,7 +106,6 @@
   recognition.onend = function () {
     active = false;
 
-    // Restart only if conversation alive and not speaking
     if (listening && !speechSynthesis.speaking) {
       setTimeout(start, 300);
     }
