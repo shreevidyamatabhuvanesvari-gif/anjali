@@ -183,42 +183,46 @@ document.getElementById("adminBtn").onclick = () => {
 };
 </script>
 
-  <script>
-window.onAnjaliAnswered = function () {
-  if (!conversationActive) return;
+<script>
+let waitTimer = null;
+let remindTimer = null;
+
+// ⏳ 2 मिनट का इंतज़ार + सुनना
+function startWaitingPhase() {
+  clearTimers();
 
   const status = document.getElementById("appStatus");
+  status.textContent = "मैं सुन रही हूँ…";
 
-  const TOTAL_WAIT = 120000;     // ⏱️ 2 मिनट
-  const REMINDER_GAP = 15000;    // ⏱️ हर 15 सेकंड
-  let elapsed = 0;
+  // 🎤 लगातार सुनना
+  if (window.STT) {
+    STT.start();
+  }
 
-  status.textContent = "मैं यहीं हूँ…";
-
-  // 🔁 अपनेपन वाला reminder loop
-  const reminderTimer = setInterval(() => {
-
-    // अगर user बीच में बोल दे → तुरंत सुनना
-    if (window.STT && !speechSynthesis.speaking) {
-      STT.start();
+  // 🕒 हर 30 सेकंड में हल्का अपनापन
+  remindTimer = setInterval(() => {
+    if (!speechSynthesis.speaking && window.TTS) {
+      TTS.speak("मैं आपसे और बात करना चाहती हूँ।");
     }
+  }, 30000); // 30 सेकंड
 
-    if (window.TTS) {
-      TTS.speak(
-        "मैं आपसे और बात करना चाहती हूँ। कृपया मुझसे बात करें।"
-      );
-    }
+  // ⛔ 2 मिनट बाद याद दिलाना बंद (लेकिन सुनना चालू रहेगा)
+  waitTimer = setTimeout(() => {
+    clearInterval(remindTimer);
+  }, 120000); // 2 मिनट
+}
 
-    elapsed += REMINDER_GAP;
+function clearTimers() {
+  if (waitTimer) clearTimeout(waitTimer);
+  if (remindTimer) clearInterval(remindTimer);
+  waitTimer = null;
+  remindTimer = null;
+}
 
-    // ⏹️ 2 मिनट पूरे
-    if (elapsed >= TOTAL_WAIT) {
-      clearInterval(reminderTimer);
-      status.textContent = "मैं सुन रही हूँ…";
-      if (window.STT) STT.start();
-    }
-
-  }, REMINDER_GAP);
+// 🔁 Answer मिलने के बाद यही कॉल होगा
+window.onAnjaliAnswered = function () {
+  clearTimers();
+  startWaitingPhase();
 };
 </script>
 <!-- ================= END ================= -->
