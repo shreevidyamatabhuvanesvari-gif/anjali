@@ -1,6 +1,7 @@
 /* =========================================================
    voice/stt.js
-   Role: Speech To Text + Continuous Conversation (FINAL)
+   Role: CONTINUOUS Speech To Text (2-Min Loop)
+   Purpose: Mouth + Ear open together (SAFE)
    ========================================================= */
 
 (function (window) {
@@ -10,51 +11,53 @@
     window.SpeechRecognition || window.webkitSpeechRecognition;
 
   if (!SpeechRecognition) {
-    console.error("❌ SpeechRecognition not supported");
+    console.error("STT not supported");
     return;
   }
 
   const recognition = new SpeechRecognition();
-
-  // ---------- CONFIG ----------
   recognition.lang = "hi-IN";
   recognition.interimResults = false;
-  recognition.continuous = false;
+  recognition.continuous = false; // browser limitation
 
-  let isListening = false;
+  let active = false;
+  let keepAlive = false;
+  let stopTimer = null;
 
-  // ---------- START LISTENING ----------
+  /* ---------- START LISTENING ---------- */
   function start() {
-    if (isListening) return;
+    if (active) return;
 
     try {
       recognition.start();
-      isListening = true;
+      active = true;
+      keepAlive = true;
       console.log("🎤 STT started");
+
+      // ⏱️ 2 मिनट बाद खुद बंद
+      clearTimeout(stopTimer);
+      stopTimer = setTimeout(() => {
+        keepAlive = false;
+        active = false;
+        recognition.stop();
+        console.log("⏹️ STT auto-stopped after 2 minutes");
+      }, 120000);
+
     } catch (e) {
-      console.error("STT start error:", e);
-      isListening = false;
+      console.error("STT start error", e);
     }
   }
 
-  // ---------- RESULT ----------
+  /* ---------- RESULT ---------- */
   recognition.onresult = async function (event) {
-    const transcript =
-      event.results[0][0].transcript.trim();
-
+    const transcript = event.results[0][0].transcript.trim();
     console.log("👂 Heard:", transcript);
 
-    // 🔒 तुरंत listening बंद करो
-    isListening = false;
-
+    // 🧠 उत्तर निकालो
     let reply = "इस प्रश्न का उत्तर मेरे ज्ञान में नहीं है।";
 
-    try {
-      if (window.AnswerEngine) {
-        reply = await AnswerEngine.answer(transcript);
-      }
-    } catch (e) {
-      console.error("Answer error:", e);
+    if (window.AnswerEngine) {
+      reply = await AnswerEngine.answer(transcript);
     }
 
     // 🔊 उत्तर बोलो
@@ -62,24 +65,60 @@
       TTS.speak(reply);
     }
 
-    // 🔁 उत्तर के बाद फिर से सुनने का संकेत
+    // index.html को संकेत
     if (window.onAnjaliAnswered) {
       window.onAnjaliAnswered();
     }
+
+    // 🔁 उत्तर के बाद दोबारा सुनना
+    if (keepAlive) {
+      waitForSpeechEnd(() => {
+        if (keepAlive && !active) {
+          start();
+        }
+      });
+    }
   };
 
-  // ---------- END ----------
+  /* ---------- END ---------- */
   recognition.onend = function () {
-    console.log("🎤 STT ended");
-    isListening = false;
+    active = false;
+
+    // अगर user ने बंद नहीं किया और 2 मिनट बाकी हैं
+    if (
+      keepAlive &&
+      window.speechSynthesis &&
+      !speechSynthesis.speaking
+    ) {
+      setTimeout(() => {
+        if (!active && keepAlive) start();
+      }, 500);
+    }
   };
 
-  recognition.onerror = function (e) {
-    console.error("STT error:", e);
-    isListening = false;
+  recognition.onerror = function () {
+    active = false;
+    if (keepAlive) {
+      setTimeout(() => {
+        if (!active) start();
+      }, 800);
+    }
   };
 
-  // ---------- EXPOSE ----------
+  /* ---------- WAIT FOR TTS END ---------- */
+  function waitForSpeechEnd(cb) {
+    const i = setInterval(() => {
+      if (
+        !window.speechSynthesis ||
+        !speechSynthesis.speaking
+      ) {
+        clearInterval(i);
+        cb();
+      }
+    }, 120);
+  }
+
+  /* ---------- EXPOSE ---------- */
   window.STT = {
     start
   };
