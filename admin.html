@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+<html lang="hi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>अंजली — Admin Panel</title>
+
+<style>
+body{
+  margin:0;
+  background:#111;
+  color:#eee;
+  font-family:system-ui,-apple-system,"Segoe UI",Roboto,"Noto Sans Devanagari",Arial;
+}
+
+.panel{
+  max-width:720px;
+  margin:20px auto;
+  background:#1e1e26;
+  padding:18px;
+  border-radius:18px;
+}
+
+h2{color:#ffb3b3;margin-top:0}
+
+textarea,input{
+  width:100%;
+  margin-top:8px;
+  padding:12px;
+  border-radius:10px;
+  border:1px solid #333;
+  background:#121212;
+  color:#fff;
+  font-size:14px;
+}
+
+textarea.bulk{
+  min-height:360px;   /* 🔥 बड़ा Bulk Box */
+  line-height:1.5;
+}
+
+button{
+  margin-top:12px;
+  padding:12px 16px;
+  border:none;
+  border-radius:12px;
+  background:#ffb3b3;
+  color:#111;
+  cursor:pointer;
+  font-size:14px;
+}
+
+.msg{
+  font-size:13px;
+  margin-top:6px;
+}
+</style>
+</head>
+
+<body>
+
+<!-- ================= SINGLE LEARNING ================= -->
+<div class="panel">
+<h2>🧠 Single Learning (एक प्रश्न)</h2>
+
+<textarea id="q" placeholder="प्रश्न लिखें"></textarea>
+<textarea id="a" placeholder="उत्तर लिखें"></textarea>
+<input id="t" placeholder="टैग (कॉमा से अलग करें)">
+
+<button onclick="saveSingle()">सेव करें</button>
+<div id="msg1" class="msg"></div>
+</div>
+
+<!-- ================= BULK LEARNING ================= -->
+<div class="panel">
+<h2>📦 Bulk Learning (100+ / 1000+)</h2>
+
+<textarea id="bulk" class="bulk"
+placeholder="Q: प्रश्न?
+A: उत्तर
+TAGS: टैग1, टैग2
+
+Q: दूसरा प्रश्न?
+A: दूसरा उत्तर
+
+(हर प्रश्न–उत्तर ब्लॉक के बीच एक खाली लाइन रखें)">
+</textarea>
+
+<button onclick="saveBulk()">Bulk सेव करें</button>
+<div id="msg2" class="msg"></div>
+</div>
+        <button class="btn secondary" id="viewLearnBtn">सीखा हुआ देखें</button>
+
+<!-- ===================================================
+     SCRIPT SECTION (ORDER IS FINAL & FUTURE-SAFE)
+     =================================================== -->
+
+<!-- Core -->
+<script src="core/AnjaliCore.js"></script>
+
+<!-- Storage / Learning -->
+<script src="learning/KnowledgeBase.js"></script>
+<script src="learning/ExperienceMemory.js"></script>
+
+<!-- Bridge / Control (Future use) -->
+<script src="core/LearningBridge.js"></script>
+<script src="core/AdminControl.js"></script>
+
+<!-- Admin Tools (Future expansion) -->
+<script src="admin/admin_learning_view.js"></script>
+<script src="admin/admin_bulk_loader.js"></script>
+
+<!-- Voice (No calls from Admin, but loaded safely) -->
+<script src="voice/tts.js"></script>
+<script src="voice/stt.js"></script>
+
+<!-- ================= SAVE LOGIC ================= -->
+<script>
+async function saveSingle(){
+  const msg=document.getElementById("msg1");
+  try{
+    await KnowledgeBase.init();
+    await KnowledgeBase.saveOne({
+      question:q.value.trim(),
+      answer:a.value.trim(),
+      tags:t.value.split(",").map(x=>x.trim()).filter(Boolean)
+    });
+    msg.style.color="#9fdf9f";
+    msg.textContent="✔️ प्रश्न–उत्तर सफलतापूर्वक सेव हुआ";
+    q.value=""; a.value=""; t.value="";
+  }catch(e){
+    msg.style.color="#ff9f9f";
+    msg.textContent="❌ सेव नहीं हुआ";
+  }
+}
+
+async function saveBulk(){
+  const msg=document.getElementById("msg2");
+  try{
+    await KnowledgeBase.init();
+    const blocks=bulk.value.split(/\n\s*\n/);
+    let count=0;
+
+    for(const b of blocks){
+      const q=b.match(/Q:\s*(.+)/i);
+      const a=b.match(/A:\s*(.+)/i);
+      const t=b.match(/TAGS:\s*(.+)/i);
+      if(q && a){
+        await KnowledgeBase.saveOne({
+          question:q[1].trim(),
+          answer:a[1].trim(),
+          tags: t ? t[1].split(",").map(x=>x.trim()) : []
+        });
+        count++;
+      }
+    }
+    msg.style.color="#9fdf9f";
+    msg.textContent=`✔️ ${count} प्रश्न सेव हुए`;
+  }catch(e){
+    msg.style.color="#ff9f9f";
+    msg.textContent="❌ Bulk सेव विफल";
+  }
+}
+</script>
+  <!-- ================= SINGLE LEARNING BOX ================= -->
+<div style="
+  max-width:600px;
+  margin:20px auto;
+  background:#1e1e26;
+  padding:18px;
+  border-radius:18px;
+  color:#eee;
+">
+
+  <h2 style="color:#ffb3b3;">🧠 अंजली को सिखाएँ (Single Q&A)</h2>
+
+  <textarea id="qInput"
+    placeholder="प्रश्न लिखें"
+    style="width:100%;min-height:60px;margin-top:8px;
+    padding:10px;border-radius:10px;border:1px solid #333;
+    background:#121212;color:#fff;">
+  </textarea>
+
+  <textarea id="aInput"
+    placeholder="उत्तर लिखें"
+    style="width:100%;min-height:90px;margin-top:8px;
+    padding:10px;border-radius:10px;border:1px solid #333;
+    background:#121212;color:#fff;">
+  </textarea>
+
+  <input id="tInput"
+    placeholder="टैग (कॉमा से अलग करें)"
+    style="width:100%;margin-top:8px;
+    padding:10px;border-radius:10px;border:1px solid #333;
+    background:#121212;color:#fff;"
+  />
+
+  <button onclick="saveQA()"
+    style="
+      margin-top:12px;
+      padding:12px;
+      width:100%;
+      border:none;
+      border-radius:12px;
+      background:#ffb3b3;
+      color:#111;
+      font-size:15px;
+      cursor:pointer;
+    ">
+    सेव करें
+  </button>
+
+  <div id="msg"
+    style="margin-top:10px;font-size:13px;">
+  </div>
+</div>
+
+<script>
+async function saveQA(){
+  const msg = document.getElementById("msg");
+  const q = document.getElementById("qInput").value.trim();
+  const a = document.getElementById("aInput").value.trim();
+  const t = document.getElementById("tInput").value
+              .split(",")
+              .map(x => x.trim())
+              .filter(Boolean);
+
+  if (!q || !a) {
+    msg.style.color = "#ff9f9f";
+    msg.textContent = "❌ प्रश्न और उत्तर दोनों आवश्यक हैं।";
+    return;
+  }
+
+  try {
+    await KnowledgeBase.init();
+    await KnowledgeBase.saveOne({
+      question: q,
+      answer: a,
+      tags: t
+    });
+
+    msg.style.color = "#9fdf9f";
+    msg.textContent = "✅ प्रश्न–उत्तर सफलतापूर्वक सेव हो गया।";
+
+    // साफ करें
+    document.getElementById("qInput").value = "";
+    document.getElementById("aInput").value = "";
+    document.getElementById("tInput").value = "";
+
+  } catch (e) {
+    msg.style.color = "#ff9f9f";
+    msg.textContent = "❌ सेव करने में समस्या आई।";
+  }
+}
+    </script>
+
+</body>
+</html>
