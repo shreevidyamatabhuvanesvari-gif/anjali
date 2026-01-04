@@ -3,7 +3,9 @@
    Role: Offline Question–Answer Storage (IndexedDB)
    GUARANTEE:
    - Save button WILL work
-   - No impact on STT / TTS / Reasoning
+   - Old data SAFE
+   - ReasoningEngine WILL receive data
+   - No impact on STT / TTS
    ========================================================= */
 
 (function (window) {
@@ -15,7 +17,7 @@
 
   let db = null;
 
-  // ---------- OPEN DATABASE ----------
+  /* ---------- OPEN DATABASE (STABLE) ---------- */
   function openDB() {
     if (db) return Promise.resolve(db);
 
@@ -38,84 +40,72 @@
       };
 
       req.onerror = function () {
-        console.error("❌ IndexedDB open failed");
-        reject(new Error("DB open failed"));
+        reject(new Error("IndexedDB open failed"));
       };
     });
   }
 
-  // ---------- API ----------
+  /* ---------- NORMALIZE (Reasoning-friendly) ---------- */
+  function normalize(text) {
+    return String(text || "")
+      .toLowerCase()
+      .replace(/[^\u0900-\u097F\s]/g, "")
+      .trim();
+  }
+
+  /* ---------- API ---------- */
   const KnowledgeBase = {
 
-    // Init (SAFE)
+    /* Init */
     async init() {
-      try {
-        await openDB();
-        return true;
-      } catch (e) {
-        return false;
-      }
+      await openDB();
+      return true;
     },
 
-    // ---------- SAVE SINGLE (FIXED) ----------
+    /* ---------- SAVE SINGLE (GUARANTEED) ---------- */
     async saveOne({ question, answer, tags = [] }) {
       if (!question || !answer) {
-        return Promise.reject("Question and Answer required");
+        throw new Error("Question and Answer required");
       }
 
-      let d;
-      try {
-        d = await openDB();
-      } catch (e) {
-        return Promise.reject("Database not available");
-      }
+      const d = await openDB();
 
       return new Promise((resolve, reject) => {
-        try {
-          const tx = d.transaction(STORE, "readwrite");
-          const store = tx.objectStore(STORE);
+        const tx = d.transaction(STORE, "readwrite");
+        const store = tx.objectStore(STORE);
 
-          store.add({
-            question,
-            answer,
-            tags,
-            time: Date.now()
-          });
+        store.add({
+          question,
+          answer,
+          question_norm: normalize(question), // 🔑 KEY FIX
+          tags,
+          time: Date.now()
+        });
 
-          tx.oncomplete = () => {
-            resolve(true);   // ✅ SUCCESS SIGNAL
-          };
-
-          tx.onerror = () => {
-            reject("Save transaction failed");
-          };
-        } catch (e) {
-          reject("Save exception");
-        }
+        tx.oncomplete = () => resolve(true);
+        tx.onerror = () => reject("Save failed");
       });
     },
 
-    // ---------- GET ALL ----------
+    /* ---------- GET ALL (REASONING-SAFE) ---------- */
     async getAll() {
-      let d;
-      try {
-        d = await openDB();
-      } catch (e) {
-        return [];
-      }
+      const d = await openDB();
 
       return new Promise((resolve) => {
         const tx = d.transaction(STORE, "readonly");
         const store = tx.objectStore(STORE);
         const req = store.getAll();
 
-        req.onsuccess = () => resolve(req.result || []);
+        req.onsuccess = () => {
+          resolve(Array.isArray(req.result) ? req.result : []);
+        };
+
         req.onerror = () => resolve([]);
       });
     }
   };
 
-  // ---------- EXPOSE ----------
+  /* ---------- EXPOSE ---------- */
   window.KnowledgeBase = KnowledgeBase;
 
 })(window);
