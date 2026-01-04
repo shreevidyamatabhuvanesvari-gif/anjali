@@ -1,22 +1,19 @@
 /* =========================================================
-   learning/KnowledgeBase.js
-   Level: 3 (VOICE-SAFE • SAVE-SAFE • REASONING-READY)
-   GUARANTEE:
-   - ✅ Old data preserved
-   - ✅ Save works immediately
-   - ✅ Voice (STT/TTS) unaffected
+   KnowledgeBase.js
+   Role: Offline Question–Answer Storage (IndexedDB)
+   Safe for: Mobile Chrome, GitHub Pages
    ========================================================= */
 
 (function (window) {
   "use strict";
 
   const DB_NAME = "AnjaliKnowledgeDB";
-  const DB_VERSION = 1; // ⚠️ DO NOT CHANGE (data safety)
+  const DB_VERSION = 1;
   const STORE = "qa_store";
 
   let db = null;
 
-  /* ---------- OPEN DATABASE (SAFE) ---------- */
+  // ---------- OPEN DATABASE ----------
   function openDB() {
     if (db) return Promise.resolve(db);
 
@@ -39,32 +36,21 @@
       };
 
       req.onerror = function () {
-        reject("KnowledgeBase: IndexedDB open failed");
+        reject("IndexedDB open failed");
       };
     });
   }
 
-  /* ---------- NORMALIZER (Level-3 Ready) ---------- */
-  function normalize(text) {
-    return String(text || "")
-      .toLowerCase()
-      .replace(/[^\u0900-\u097F\s]/g, "")
-      .trim();
-  }
-
-  /* =========================================================
-     PUBLIC API
-     ========================================================= */
-
+  // ---------- API ----------
   const KnowledgeBase = {
 
-    /* ---------- INIT ---------- */
+    // Init (call once)
     async init() {
       await openDB();
       return true;
     },
 
-    /* ---------- SAVE ONE (SAFE + CONFIRMED) ---------- */
+    // ---------- SAVE SINGLE ----------
     async saveOne({ question, answer, tags = [] }) {
       if (!question || !answer) {
         throw new Error("Question and Answer required");
@@ -79,8 +65,7 @@
         store.add({
           question,
           answer,
-          tags: Array.isArray(tags) ? tags : [],
-          question_norm: normalize(question), // Level-3 ready
+          tags,
           time: Date.now()
         });
 
@@ -89,7 +74,7 @@
       });
     },
 
-    /* ---------- GET ALL (VIEW / REASONING SAFE) ---------- */
+    // ---------- GET ALL ----------
     async getAll() {
       const d = await openDB();
 
@@ -101,26 +86,10 @@
         req.onsuccess = () => resolve(req.result || []);
         req.onerror = () => resolve([]);
       });
-    },
-
-    /* ---------- STATS (DEBUG SAFE) ---------- */
-    async stats() {
-      const all = await this.getAll();
-      return {
-        total_items: all.length,
-        approx_RAM_MB:
-          (JSON.stringify(all).length / (1024 * 1024)).toFixed(2),
-        level: "Level-3 (Stable)",
-        voice_safe: true
-      };
     }
   };
 
-  /* ---------- EXPOSE (NON-INTRUSIVE) ---------- */
-  Object.defineProperty(window, "KnowledgeBase", {
-    value: KnowledgeBase,
-    writable: false,
-    configurable: false
-  });
+  // ---------- EXPOSE ----------
+  window.KnowledgeBase = KnowledgeBase;
 
 })(window);
