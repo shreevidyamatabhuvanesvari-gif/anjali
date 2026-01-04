@@ -1,98 +1,127 @@
 /* =========================================================
-   core/ContextMemory.js
-   Role: Short-Term / Live Conversation Memory (RAM Based)
-   Purpose:
-   - Maintain recent conversational context
-   - Support reasoning & follow-up questions
-   - Auto-expire old context safely
+   core/ReasoningEngine.js
+   Role: Level-3 Context-Aware Offline Reasoning
+   RAM Profile: ~30–60 MB (safe under 150 MB)
    ========================================================= */
 
 (function (window) {
   "use strict";
 
+  if (!window.KnowledgeBase) {
+    console.error("ReasoningEngine: KnowledgeBase missing");
+    return;
+  }
+
   /* ---------- CONFIG ---------- */
-  const MAX_ITEMS = 50;              // कितने Q-A RAM में रहें
-  const MAX_AGE_MS = 15 * 60 * 1000; // 15 मिनट (auto-expire)
-  const MAX_RAM_MB = 150;            // Design limit (soft)
+  const MAX_KNOWLEDGE_SCAN = 3000;
+  const MAX_CONTEXT_USE = 20; // contextMemory से अधिकतम उपयोग
 
-  /* ---------- INTERNAL STATE ---------- */
-  let memory = [];
+  const STOP_WORDS = [
+    "क्या","है","हैं","कैसे","क्यों","कब","कहाँ",
+    "का","की","के","से","में","पर","और","तो","भी"
+  ];
 
-  /* ---------- UTILS ---------- */
-  function now() {
-    return Date.now();
+  /* ---------- TEXT UTIL ---------- */
+  function normalize(text) {
+    return String(text || "")
+      .toLowerCase()
+      .replace(/[^\u0900-\u097F\s]/g, "")
+      .trim();
   }
 
-  function cleanup() {
-    const cutoff = now() - MAX_AGE_MS;
-
-    // समय से पुराने context हटाओ
-    memory = memory.filter(item => item.time >= cutoff);
-
-    // अधिक entries हों तो oldest हटाओ
-    if (memory.length > MAX_ITEMS) {
-      memory = memory.slice(memory.length - MAX_ITEMS);
-    }
+  function extractKeywords(text) {
+    return normalize(text)
+      .split(/\s+/)
+      .filter(w => w.length > 1 && !STOP_WORDS.includes(w));
   }
 
-  /* ---------- CORE API ---------- */
-  const ContextMemory = {
+  /* ---------- CONTEXT WEIGHTING ---------- */
+  function contextWeightScore(qKeys) {
+    if (!window.ContextMemory) return 0;
 
-    /* 🔹 नया context जोड़ो */
-    add({ question, answer }) {
-      if (!question) return;
+    const recent = ContextMemory.getRecent(MAX_CONTEXT_USE);
+    let score = 0;
+    let weight = recent.length;
 
-      memory.push({
-        question: String(question),
-        answer: answer ? String(answer) : "",
-        time: now()
-      });
-
-      cleanup();
-    },
-
-    /* 🔹 पूरा active context (ReasoningEngine के लिए) */
-    getAll() {
-      cleanup();
-      return memory.map(item => ({
-        question: item.question,
-        answer: item.answer
-      }));
-    },
-
-    /* 🔹 सबसे हाल का context */
-    getLast() {
-      cleanup();
-      return memory.length ? memory[memory.length - 1] : null;
-    },
-
-    /* 🔹 पिछले N context */
-    getRecent(n = 5) {
-      cleanup();
-      return memory.slice(-n);
-    },
-
-    /* 🔹 Context clear (safe reset) */
-    clear() {
-      memory = [];
-    },
-
-    /* 🔹 Debug / inspection (optional) */
-    stats() {
-      cleanup();
-      return {
-        items: memory.length,
-        approxRAM_MB: (JSON.stringify(memory).length / (1024 * 1024)).toFixed(2),
-        maxDesignRAM_MB: MAX_RAM_MB
-      };
+    for (const item of recent) {
+      const ctxKeys = extractKeywords(item.question);
+      for (const k of qKeys) {
+        if (ctxKeys.includes(k)) {
+          score += weight * 0.4; // 🔑 recency + frequency
+        }
+      }
+      weight--;
     }
-  };
+    return score;
+  }
 
-  /* ---------- EXPOSE (READ-ONLY) ---------- */
-  Object.defineProperty(window, "ContextMemory", {
-    value: ContextMemory,
+  /* ---------- MAIN REASON ---------- */
+  async function reason(questionText) {
+    if (!questionText) {
+      return "मैं आपकी बात समझ नहीं पाई।";
+    }
+
+    await KnowledgeBase.init();
+    const knowledge = await KnowledgeBase.getAll();
+
+    if (!Array.isArray(knowledge) || knowledge.length === 0) {
+      return "मेरे पास अभी पर्याप्त ज्ञान नहीं है।";
+    }
+
+    const qNorm = normalize(questionText);
+    const qKeys = extractKeywords(questionText);
+
+    /* ---------- 1️⃣ DIRECT MATCH ---------- */
+    for (let i = 0; i < knowledge.length && i < MAX_KNOWLEDGE_SCAN; i++) {
+      const kq = normalize(knowledge[i].question);
+      if (qNorm.includes(kq) || kq.includes(qNorm)) {
+        return knowledge[i].answer;
+      }
+    }
+
+    /* ---------- 2️⃣ SEMANTIC + CONTEXT SCORING ---------- */
+    let best = null;
+    let bestScore = 0;
+
+    for (let i = 0; i < knowledge.length && i < MAX_KNOWLEDGE_SCAN; i++) {
+      const item = knowledge[i];
+      const kKeys = extractKeywords(item.question);
+      if (kKeys.length === 0) continue;
+
+      let score = 0;
+
+      for (const qk of qKeys) {
+        if (kKeys.includes(qk)) score += 1;
+      }
+
+      // 🔥 Level-3 Context Influence
+      score += contextWeightScore(qKeys);
+
+      if (score > bestScore) {
+        bestScore = score;
+        best = item;
+      }
+    }
+
+    if (best && bestScore > 0) {
+      return best.answer;
+    }
+
+    /* ---------- 3️⃣ HUMAN FALLBACK ---------- */
+    return (
+      "इस प्रश्न पर मेरा सीधा उत्तर उपलब्ध नहीं है, " +
+      "लेकिन हम जिस विषय पर बात कर रहे हैं, उसे देखते हुए " +
+      "आप थोड़ा और स्पष्ट करें तो मैं बेहतर उत्तर दे पाऊँगी।"
+    );
+  }
+
+  /* ---------- EXPOSE ---------- */
+  Object.defineProperty(window, "ReasoningEngine", {
+    value: { reason },
     writable: false,
     configurable: false
   });
+
+  window.__REASONING_READY__ = true;
 
 })(window);
