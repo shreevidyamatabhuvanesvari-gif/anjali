@@ -1,127 +1,127 @@
 /* =========================================================
-   core/ReasoningEngine.js
-   Role: Level-3 Context-Aware Offline Reasoning
-   RAM Profile: ~30–60 MB (safe under 150 MB)
+   core/ContextMemory.js
+   Level: 3 (Maximum Practical – Passive Only)
+   Role: High-Capacity Context Buffer (RAM Based)
+   SAFETY GUARANTEE:
+   - NO control
+   - NO timers
+   - NO async
+   - NO STT / TTS interaction
    ========================================================= */
 
 (function (window) {
   "use strict";
 
-  if (!window.KnowledgeBase) {
-    console.error("ReasoningEngine: KnowledgeBase missing");
-    return;
+  /* =====================================================
+     CONFIG (SOFT LIMITS – NOT HARD BLOCKS)
+     ===================================================== */
+  const MAX_ITEMS = 12000;                 // ~150 MB possible
+  const MAX_AGE_MS = 30 * 60 * 1000;       // 30 minutes
+  const MAX_RAM_MB = 150;                  // design ceiling
+
+  /* =====================================================
+     INTERNAL STATE (PASSIVE ONLY)
+     ===================================================== */
+  let memory = [];
+
+  /* =====================================================
+     UTILS (PURE, NO SIDE EFFECTS)
+     ===================================================== */
+  function now() {
+    return Date.now();
   }
 
-  /* ---------- CONFIG ---------- */
-  const MAX_KNOWLEDGE_SCAN = 3000;
-  const MAX_CONTEXT_USE = 20; // contextMemory से अधिकतम उपयोग
-
-  const STOP_WORDS = [
-    "क्या","है","हैं","कैसे","क्यों","कब","कहाँ",
-    "का","की","के","से","में","पर","और","तो","भी"
-  ];
-
-  /* ---------- TEXT UTIL ---------- */
-  function normalize(text) {
-    return String(text || "")
-      .toLowerCase()
-      .replace(/[^\u0900-\u097F\s]/g, "")
-      .trim();
+  function approximateRAM_MB() {
+    try {
+      return JSON.stringify(memory).length / (1024 * 1024);
+    } catch (_) {
+      return 0;
+    }
   }
 
-  function extractKeywords(text) {
-    return normalize(text)
-      .split(/\s+/)
-      .filter(w => w.length > 1 && !STOP_WORDS.includes(w));
+  function cleanup() {
+    const cutoff = now() - MAX_AGE_MS;
+
+    // ⛔ Only data trimming — NO control logic
+    memory = memory.filter(item => item.time >= cutoff);
+
+    // soft length cap
+    if (memory.length > MAX_ITEMS) {
+      memory = memory.slice(memory.length - MAX_ITEMS);
+    }
   }
 
-  /* ---------- CONTEXT WEIGHTING ---------- */
-  function contextWeightScore(qKeys) {
-    if (!window.ContextMemory) return 0;
+  /* =====================================================
+     PUBLIC API (PASSIVE STORAGE)
+     ===================================================== */
+  const ContextMemory = {
 
-    const recent = ContextMemory.getRecent(MAX_CONTEXT_USE);
-    let score = 0;
-    let weight = recent.length;
+    /* ---------- USER SAID ---------- */
+    addUserUtterance(text) {
+      if (!text) return;
 
-    for (const item of recent) {
-      const ctxKeys = extractKeywords(item.question);
-      for (const k of qKeys) {
-        if (ctxKeys.includes(k)) {
-          score += weight * 0.4; // 🔑 recency + frequency
-        }
-      }
-      weight--;
+      memory.push({
+        role: "user",
+        text: String(text),
+        time: now()
+      });
+
+      cleanup();
+    },
+
+    /* ---------- ANJALI REPLIED ---------- */
+    addAnjaliReply(text) {
+      if (!text) return;
+
+      memory.push({
+        role: "anjali",
+        text: String(text),
+        time: now()
+      });
+
+      cleanup();
+    },
+
+    /* ---------- FULL CONTEXT ---------- */
+    getAll() {
+      cleanup();
+      return memory.slice(); // copy only
+    },
+
+    /* ---------- RECENT CONTEXT ---------- */
+    getRecent(n = 10) {
+      cleanup();
+      return memory.slice(-n);
+    },
+
+    /* ---------- LAST ITEM ---------- */
+    getLast() {
+      cleanup();
+      return memory.length ? memory[memory.length - 1] : null;
+    },
+
+    /* ---------- CLEAR (MANUAL ONLY) ---------- */
+    clear() {
+      memory = [];
+    },
+
+    /* ---------- INSPECTION (DEBUG SAFE) ---------- */
+    stats() {
+      return {
+        items: memory.length,
+        approxRAM_MB: approximateRAM_MB().toFixed(2),
+        maxDesignRAM_MB: MAX_RAM_MB
+      };
     }
-    return score;
-  }
+  };
 
-  /* ---------- MAIN REASON ---------- */
-  async function reason(questionText) {
-    if (!questionText) {
-      return "मैं आपकी बात समझ नहीं पाई।";
-    }
-
-    await KnowledgeBase.init();
-    const knowledge = await KnowledgeBase.getAll();
-
-    if (!Array.isArray(knowledge) || knowledge.length === 0) {
-      return "मेरे पास अभी पर्याप्त ज्ञान नहीं है।";
-    }
-
-    const qNorm = normalize(questionText);
-    const qKeys = extractKeywords(questionText);
-
-    /* ---------- 1️⃣ DIRECT MATCH ---------- */
-    for (let i = 0; i < knowledge.length && i < MAX_KNOWLEDGE_SCAN; i++) {
-      const kq = normalize(knowledge[i].question);
-      if (qNorm.includes(kq) || kq.includes(qNorm)) {
-        return knowledge[i].answer;
-      }
-    }
-
-    /* ---------- 2️⃣ SEMANTIC + CONTEXT SCORING ---------- */
-    let best = null;
-    let bestScore = 0;
-
-    for (let i = 0; i < knowledge.length && i < MAX_KNOWLEDGE_SCAN; i++) {
-      const item = knowledge[i];
-      const kKeys = extractKeywords(item.question);
-      if (kKeys.length === 0) continue;
-
-      let score = 0;
-
-      for (const qk of qKeys) {
-        if (kKeys.includes(qk)) score += 1;
-      }
-
-      // 🔥 Level-3 Context Influence
-      score += contextWeightScore(qKeys);
-
-      if (score > bestScore) {
-        bestScore = score;
-        best = item;
-      }
-    }
-
-    if (best && bestScore > 0) {
-      return best.answer;
-    }
-
-    /* ---------- 3️⃣ HUMAN FALLBACK ---------- */
-    return (
-      "इस प्रश्न पर मेरा सीधा उत्तर उपलब्ध नहीं है, " +
-      "लेकिन हम जिस विषय पर बात कर रहे हैं, उसे देखते हुए " +
-      "आप थोड़ा और स्पष्ट करें तो मैं बेहतर उत्तर दे पाऊँगी।"
-    );
-  }
-
-  /* ---------- EXPOSE ---------- */
-  Object.defineProperty(window, "ReasoningEngine", {
-    value: { reason },
+  /* =====================================================
+     EXPOSE (READ-ONLY, NO OVERRIDE)
+     ===================================================== */
+  Object.defineProperty(window, "ContextMemory", {
+    value: ContextMemory,
     writable: false,
     configurable: false
   });
-
-  window.__REASONING_READY__ = true;
 
 })(window);
