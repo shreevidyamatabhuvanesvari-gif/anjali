@@ -1,7 +1,10 @@
 /* =========================================================
    voice/stt.js
-   Role: Idle-based Continuous Listening (USER-DRIVEN)
-   RAM Profile: ~5–10 MB (safe, bounded)
+   Role: Advanced Idle-based Continuous Listening
+   Supports:
+   - Reading Mode (article reading with control commands)
+   - Reasoning Mode (Q&A)
+   - Stable 2-minute silence logic (resettable)
    ========================================================= */
 
 (function (window) {
@@ -21,12 +24,28 @@
   recognition.continuous = false; // browser constraint
 
   let active = false;        // recognition engine running
-  let listening = false;     // conversation session alive
-  let idleTimer = null;      // silence timer
+  let listening = false;     // mic allowed
+  let idleTimer = null;
 
   const IDLE_LIMIT = 120000; // 2 minutes
 
-  /* ---------- IDLE TIMER ---------- */
+  /* ==================================================
+     🎛️ CONTROL COMMANDS (Reading Mode)
+     ================================================== */
+  const CONTROL_COMMANDS = {
+    STOP: ["रुको", "बस", "ठहरो", "बंद"],
+    EXIT: ["अब बात करो", "बातचीत शुरू", "रीडिंग बंद"],
+    NEXT: ["आगे पढ़ो", "अगला हिस्सा"],
+    AGAIN: ["फिर पढ़ो", "दोबारा पढ़ो"]
+  };
+
+  function matchCommand(text, list) {
+    return list.some(cmd => text.includes(cmd));
+  }
+
+  /* ==================================================
+     ⏱️ IDLE TIMER (STABLE, MODE-AWARE)
+     ================================================== */
   function resetIdleTimer() {
     clearTimeout(idleTimer);
     idleTimer = setTimeout(() => {
@@ -38,7 +57,9 @@
     }, IDLE_LIMIT);
   }
 
-  /* ---------- START LISTENING ---------- */
+  /* ==================================================
+     🎤 START LISTENING
+     ================================================== */
   function start() {
     if (active || !listening) return;
 
@@ -52,7 +73,9 @@
     }
   }
 
-  /* ---------- RESULT (USER SPOKE) ---------- */
+  /* ==================================================
+     🎧 RESULT (USER SPOKE)
+     ================================================== */
   recognition.onresult = async function (event) {
     active = false;
 
@@ -63,14 +86,55 @@
 
     console.log("👂 Heard:", transcript);
 
-    // 🧠 USER CONTEXT ADD
+    // ✅ हर स्थिति में idle reset (बहुत ज़रूरी)
+    resetIdleTimer();
+
+    /* ==================================================
+       📖 READING MODE — CONTROL COMMAND LISTENING
+       ================================================== */
+    if (window.ReadingMode && ReadingMode.isActive()) {
+
+      // 🛑 STOP / PAUSE
+      if (matchCommand(transcript, CONTROL_COMMANDS.STOP)) {
+        ReadingMode.stop();
+        if (window.TTS) TTS.speak("ठीक है, मैं रुक गई हूँ।");
+        return;
+      }
+
+      // 🔁 EXIT READING → REASONING MODE
+      if (matchCommand(transcript, CONTROL_COMMANDS.EXIT)) {
+        ReadingMode.stop();
+        if (window.TTS) TTS.speak("ठीक है, अब हम बात कर सकते हैं।");
+        return;
+      }
+
+      // ▶️ NEXT PART
+      if (matchCommand(transcript, CONTROL_COMMANDS.NEXT)) {
+        ReadingMode.next();
+        return;
+      }
+
+      // 🔄 AGAIN
+      if (matchCommand(transcript, CONTROL_COMMANDS.AGAIN)) {
+        ReadingMode.repeat();
+        return;
+      }
+
+      // ❗ Reading Mode में सामान्य शब्द अनदेखे
+      console.log("📖 ReadingMode active — content ignored");
+      return;
+    }
+
+    /* ==================================================
+       🧠 CONTEXT MEMORY (USER)
+       ================================================== */
     if (window.ContextMemory) {
       ContextMemory.addUserUtterance(transcript);
     }
 
-    // 🔁 User spoke → reset silence timer
-    resetIdleTimer();
-
+    /* ==================================================
+       🧠 REASONING / ANSWER
+       ================================================== */
     let reply = "इस प्रश्न का उत्तर मेरे ज्ञान में नहीं है।";
 
     try {
@@ -84,17 +148,23 @@
       reply = "उत्तर देने में मुझे कठिनाई हुई।";
     }
 
-    // 🧠 ANJALI REPLY CONTEXT ADD
+    /* ==================================================
+       🧠 CONTEXT MEMORY (ANJALI)
+       ================================================== */
     if (window.ContextMemory) {
       ContextMemory.addAnjaliReply(reply);
     }
 
-    // 🔊 Speak answer ONLY ONCE
+    /* ==================================================
+       🔊 SPEAK ANSWER (ONCE)
+       ================================================== */
     if (window.TTS) {
       TTS.speak(reply);
     }
 
-    // 🔕 After answer → stay silent, keep ear open
+    /* ==================================================
+       🔕 उत्तर के बाद → सुनते रहो
+       ================================================== */
     waitForSpeechEnd(() => {
       if (listening) {
         start();
@@ -102,10 +172,11 @@
     });
   };
 
-  /* ---------- END ---------- */
+  /* ==================================================
+     🔚 END / ERROR HANDLING
+     ================================================== */
   recognition.onend = function () {
     active = false;
-
     if (listening && !speechSynthesis.speaking) {
       setTimeout(start, 300);
     }
@@ -118,7 +189,9 @@
     }
   };
 
-  /* ---------- UTILITY ---------- */
+  /* ==================================================
+     🔧 UTILITY
+     ================================================== */
   function waitForSpeechEnd(cb) {
     const i = setInterval(() => {
       if (!speechSynthesis.speaking) {
@@ -128,7 +201,9 @@
     }, 120);
   }
 
-  /* ---------- EXPOSE ---------- */
+  /* ==================================================
+     🌐 EXPOSE API
+     ================================================== */
   window.STT = {
     start() {
       listening = true;
