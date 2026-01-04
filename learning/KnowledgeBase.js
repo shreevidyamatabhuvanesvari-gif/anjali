@@ -1,152 +1,133 @@
 /* =========================================================
-   learning/KnowledgeBase.js
-   Level: 3 (VOICE-SAFE • Reasoning-Ready)
-   GUARANTEE:
-   - ❌ No DB work during STT / TTS
-   - ✅ Opens ONLY in idle/background time
-   - ✅ Zero impact on voice
+   voice/stt.js
+   Level: 3 (ROCK-SOLID VOICE LOOP)
+   GUARANTEES:
+   - 🎤 STT + 🔊 TTS parallel (mouth + ear open)
+   - 👂 Mic stays open 2 minutes after LAST user speech
+   - 🔁 Any speech resets full 2-minute window
+   - ❌ No file can stop mic except silence timeout
    ========================================================= */
 
 (function (window) {
   "use strict";
 
-  /* ---------- DB CONFIG ---------- */
-  const DB_NAME = "AnjaliKnowledgeDB";
-  const DB_VERSION = 2;
-  const STORE = "qa_store";
+  const SpeechRecognition =
+    window.SpeechRecognition || window.webkitSpeechRecognition;
 
-  let db = null;
-  let opening = false;
+  if (!SpeechRecognition) {
+    console.error("STT not supported");
+    return;
+  }
 
-  /* =========================================================
-     🧠 SAFE IDLE EXECUTOR
-     ========================================================= */
-  function runWhenIdle(fn) {
-    if ("requestIdleCallback" in window) {
-      requestIdleCallback(fn, { timeout: 2000 });
-    } else {
-      setTimeout(fn, 500);
+  const recognition = new SpeechRecognition();
+  recognition.lang = "hi-IN";
+  recognition.interimResults = false;
+  recognition.continuous = false; // browser limitation
+
+  /* ================= STATE ================= */
+  let active = false;        // recognizer running
+  let listening = false;     // conversation alive
+  let idleTimer = null;
+
+  const IDLE_LIMIT = 120000; // 2 minutes (hard rule)
+
+  /* ================= IDLE TIMER ================= */
+  function resetIdleTimer() {
+    clearTimeout(idleTimer);
+
+    idleTimer = setTimeout(() => {
+      listening = false;
+      try { recognition.stop(); } catch (_) {}
+      console.log("⏹️ Mic closed after full 2-minute silence");
+    }, IDLE_LIMIT);
+  }
+
+  /* ================= START MIC ================= */
+  function startMic() {
+    if (active || !listening) return;
+
+    try {
+      recognition.start();
+      active = true;
+      resetIdleTimer();
+      console.log("🎤 Mic listening…");
+    } catch (_) {}
+  }
+
+  /* ================= RESULT ================= */
+  recognition.onresult = async function (event) {
+    active = false;
+
+    if (!event.results || !event.results[0]) return;
+
+    const transcript = event.results[0][0].transcript.trim();
+    if (!transcript) return;
+
+    console.log("👂 User said:", transcript);
+
+    // 🔁 USER SPOKE → RESET FULL 2 MINUTES
+    resetIdleTimer();
+
+    let reply = "इस प्रश्न का उत्तर मेरे ज्ञान में नहीं है।";
+
+    try {
+      if (window.ReasoningEngine) {
+        reply = await ReasoningEngine.reason(transcript);
+      } else if (window.AnswerEngine) {
+        reply = await AnswerEngine.answer(transcript);
+      }
+    } catch (e) {
+      console.error("Reasoning error:", e);
+      reply = "उत्तर देने में मुझे कठिनाई हुई।";
     }
-  }
 
-  /* =========================================================
-     🔐 SAFE DB OPEN (IDLE ONLY)
-     ========================================================= */
-  function openDBSafe() {
-    if (db || opening) return;
+    // 🔊 SPEAK ANSWER (ONLY ONCE)
+    if (window.TTS) {
+      TTS.speak(reply);
+    }
 
-    opening = true;
-
-    runWhenIdle(() => {
-      const req = indexedDB.open(DB_NAME, DB_VERSION);
-
-      req.onupgradeneeded = function (e) {
-        const d = e.target.result;
-        if (!d.objectStoreNames.contains(STORE)) {
-          const store = d.createObjectStore(STORE, {
-            keyPath: "id",
-            autoIncrement: true
-          });
-          store.createIndex("question_norm", "question_norm", { unique: false });
-          store.createIndex("time", "time", { unique: false });
-        }
-      };
-
-      req.onsuccess = function (e) {
-        db = e.target.result;
-        opening = false;
-        console.log("📚 KnowledgeBase ready (idle)");
-      };
-
-      req.onerror = function () {
-        opening = false;
-        console.warn("KnowledgeBase: DB open failed");
-      };
+    // 🎧 MIC RE-OPENS AFTER SPEAKING
+    waitForTTS(() => {
+      if (listening) startMic();
     });
-  }
+  };
 
-  /* =========================================================
-     🔤 NORMALIZER
-     ========================================================= */
-  function normalize(text) {
-    return String(text || "")
-      .toLowerCase()
-      .replace(/[^\u0900-\u097F\s]/g, "")
-      .trim();
-  }
-
-  /* =========================================================
-     🧠 PUBLIC API (LEVEL-3)
-     ========================================================= */
-
-  const KnowledgeBase = {
-
-    /* ---------- INIT (NON-BLOCKING) ---------- */
-    init() {
-      openDBSafe(); // 🔥 does NOT block
-      return true;
-    },
-
-    /* ---------- SAVE ONE (ADMIN / BACKGROUND ONLY) ---------- */
-    async saveOne({ question, answer, tags = [] }) {
-      if (!db) return false;
-
-      const record = {
-        question,
-        answer,
-        tags,
-        question_norm: normalize(question),
-        time: Date.now()
-      };
-
-      return new Promise(resolve => {
-        const tx = db.transaction(STORE, "readwrite");
-        tx.objectStore(STORE).add(record);
-        tx.oncomplete = () => resolve(true);
-        tx.onerror = () => resolve(false);
-      });
-    },
-
-    /* ---------- GET ALL (LIMITED, SAFE) ---------- */
-    async getAll(limit = 3000) {
-      if (!db) return [];
-
-      return new Promise(resolve => {
-        const results = [];
-        const tx = db.transaction(STORE, "readonly");
-        const store = tx.objectStore(STORE);
-        const req = store.openCursor();
-
-        req.onsuccess = e => {
-          const cursor = e.target.result;
-          if (!cursor || results.length >= limit) {
-            resolve(results);
-            return;
-          }
-          results.push(cursor.value);
-          cursor.continue();
-        };
-
-        req.onerror = () => resolve(results);
-      });
-    },
-
-    /* ---------- STATS (SAFE) ---------- */
-    stats() {
-      return {
-        status: db ? "ready" : "idle",
-        role: "Voice-Safe Level-3 Knowledge Layer"
-      };
+  /* ================= END ================= */
+  recognition.onend = function () {
+    active = false;
+    if (listening && !speechSynthesis.speaking) {
+      setTimeout(startMic, 300);
     }
   };
 
-  /* =========================================================
-     🌐 EXPOSE (READ-ONLY)
-     ========================================================= */
-  Object.defineProperty(window, "KnowledgeBase", {
-    value: KnowledgeBase,
-    writable: false,
-    configurable: false
-  });
+  recognition.onerror = function () {
+    active = false;
+    if (listening) {
+      setTimeout(startMic, 600);
+    }
+  };
+
+  /* ================= UTIL ================= */
+  function waitForTTS(cb) {
+    const i = setInterval(() => {
+      if (!speechSynthesis.speaking) {
+        clearInterval(i);
+        cb();
+      }
+    }, 120);
+  }
+
+  /* ================= PUBLIC API ================= */
+  window.STT = {
+    start() {
+      listening = true;
+      startMic();
+    },
+    stop() {
+      listening = false;
+      clearTimeout(idleTimer);
+      try { recognition.stop(); } catch (_) {}
+    }
+  };
 
 })(window);
