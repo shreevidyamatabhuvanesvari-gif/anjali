@@ -1,31 +1,26 @@
 /* =========================================================
    learning/KnowledgeBase.js
-   Level: 3 (STABLE • VOICE-SAFE • REASONING-READY)
+   Level: 3 (VOICE-SAFE • SAVE-SAFE • REASONING-READY)
    GUARANTEE:
-   - ✅ Voice (STT/TTS) NEVER breaks
-   - ✅ Knowledge ALWAYS saves & loads
-   - ✅ No idle hacks, no silent failure
+   - ✅ Old data preserved
+   - ✅ Save works immediately
+   - ✅ Voice (STT/TTS) unaffected
    ========================================================= */
 
 (function (window) {
   "use strict";
 
-  /* ---------- DB CONFIG ---------- */
   const DB_NAME = "AnjaliKnowledgeDB";
-  const DB_VERSION = 1;          // ⚠️ वापस 1 (पुराना ज्ञान सुरक्षित)
+  const DB_VERSION = 1; // ⚠️ DO NOT CHANGE (data safety)
   const STORE = "qa_store";
 
   let db = null;
-  let openingPromise = null;
 
-  /* =========================================================
-     🔐 SAFE DB OPEN (ALWAYS RELIABLE)
-     ========================================================= */
+  /* ---------- OPEN DATABASE (SAFE) ---------- */
   function openDB() {
     if (db) return Promise.resolve(db);
-    if (openingPromise) return openingPromise;
 
-    openingPromise = new Promise((resolve, reject) => {
+    return new Promise((resolve, reject) => {
       const req = indexedDB.open(DB_NAME, DB_VERSION);
 
       req.onupgradeneeded = function (e) {
@@ -44,16 +39,12 @@
       };
 
       req.onerror = function () {
-        reject("KnowledgeBase: DB open failed");
+        reject("KnowledgeBase: IndexedDB open failed");
       };
     });
-
-    return openingPromise;
   }
 
-  /* =========================================================
-     🔤 NORMALIZER (SAFE)
-     ========================================================= */
+  /* ---------- NORMALIZER (Level-3 Ready) ---------- */
   function normalize(text) {
     return String(text || "")
       .toLowerCase()
@@ -62,23 +53,24 @@
   }
 
   /* =========================================================
-     🧠 PUBLIC API (LEVEL-3 STABLE)
+     PUBLIC API
      ========================================================= */
+
   const KnowledgeBase = {
 
     /* ---------- INIT ---------- */
     async init() {
-      await openDB();   // 🔐 Guaranteed open
+      await openDB();
       return true;
     },
 
-    /* ---------- SAVE ONE ---------- */
+    /* ---------- SAVE ONE (SAFE + CONFIRMED) ---------- */
     async saveOne({ question, answer, tags = [] }) {
       if (!question || !answer) {
-        throw new Error("KnowledgeBase: Question & Answer required");
+        throw new Error("Question and Answer required");
       }
 
-      const d = await openDB();  // 🔐 Ensure DB
+      const d = await openDB();
 
       return new Promise((resolve, reject) => {
         const tx = d.transaction(STORE, "readwrite");
@@ -88,16 +80,16 @@
           question,
           answer,
           tags: Array.isArray(tags) ? tags : [],
-          question_norm: normalize(question),
+          question_norm: normalize(question), // Level-3 ready
           time: Date.now()
         });
 
         tx.oncomplete = () => resolve(true);
-        tx.onerror = () => reject("KnowledgeBase: save failed");
+        tx.onerror = () => reject("Save failed");
       });
     },
 
-    /* ---------- GET ALL ---------- */
+    /* ---------- GET ALL (VIEW / REASONING SAFE) ---------- */
     async getAll() {
       const d = await openDB();
 
@@ -111,21 +103,20 @@
       });
     },
 
-    /* ---------- STATS (SAFE) ---------- */
+    /* ---------- STATS (DEBUG SAFE) ---------- */
     async stats() {
       const all = await this.getAll();
       return {
         total_items: all.length,
         approx_RAM_MB:
           (JSON.stringify(all).length / (1024 * 1024)).toFixed(2),
-        level: "Level-3 Stable KnowledgeBase"
+        level: "Level-3 (Stable)",
+        voice_safe: true
       };
     }
   };
 
-  /* =========================================================
-     🌐 EXPOSE (READ-ONLY)
-     ========================================================= */
+  /* ---------- EXPOSE (NON-INTRUSIVE) ---------- */
   Object.defineProperty(window, "KnowledgeBase", {
     value: KnowledgeBase,
     writable: false,
