@@ -1,76 +1,49 @@
-/* =========================================================
-   voice/stt.js
-   Role: Idle-based Continuous Listening (USER-DRIVEN)
-   RAM Profile: ~5–10 MB (safe, bounded)
-   ========================================================= */
+/* ==================================================
+       📖 READING MODE — CONTROL COMMAND LISTENING
+       ================================================== */
+    if (window.ReadingMode && ReadingMode.isActive()) {
 
-(function (window) {
-  "use strict";
+      // 🛑 STOP / PAUSE
+      if (matchCommand(transcript, CONTROL_COMMANDS.STOP)) {
+        ReadingMode.stop();
+        if (window.TTS) TTS.speak("ठीक है, मैं रुक गई हूँ।");
+        return;
+      }
 
-  const SpeechRecognition =
-    window.SpeechRecognition || window.webkitSpeechRecognition;
+      // 🔁 EXIT READING → REASONING MODE
+      if (matchCommand(transcript, CONTROL_COMMANDS.EXIT)) {
+        ReadingMode.stop();
+        if (window.TTS) TTS.speak("ठीक है, अब हम बात कर सकते हैं।");
+        return;
+      }
 
-  if (!SpeechRecognition) {
-    console.error("STT not supported");
-    return;
-  }
+      // ▶️ NEXT PART
+      if (matchCommand(transcript, CONTROL_COMMANDS.NEXT)) {
+        ReadingMode.next();
+        return;
+      }
 
-  const recognition = new SpeechRecognition();
-  recognition.lang = "hi-IN";
-  recognition.interimResults = false;
-  recognition.continuous = false; // browser constraint
+      // 🔄 AGAIN
+      if (matchCommand(transcript, CONTROL_COMMANDS.AGAIN)) {
+        ReadingMode.repeat();
+        return;
+      }
 
-  let active = false;        // recognition engine running
-  let listening = false;     // conversation session alive
-  let idleTimer = null;      // silence timer
-
-  const IDLE_LIMIT = 120000; // 2 minutes
-
-  /* ---------- IDLE TIMER ---------- */
-  function resetIdleTimer() {
-    clearTimeout(idleTimer);
-    idleTimer = setTimeout(() => {
-      listening = false;
-      try {
-        recognition.stop();
-      } catch (_) {}
-      console.log("⏹️ Mic closed after 2 minutes of silence");
-    }, IDLE_LIMIT);
-  }
-
-  /* ---------- START LISTENING ---------- */
-  function start() {
-    if (active || !listening) return;
-
-    try {
-      recognition.start();
-      active = true;
-      resetIdleTimer();
-      console.log("🎤 Listening...");
-    } catch (e) {
-      console.error("STT start error", e);
+      // ❗ Reading Mode में सामान्य शब्द अनदेखे
+      console.log("📖 ReadingMode active — content ignored");
+      return;
     }
-  }
 
-  /* ---------- RESULT (USER SPOKE) ---------- */
-  recognition.onresult = async function (event) {
-    active = false;
-
-    if (!event.results || !event.results[0]) return;
-
-    const transcript = event.results[0][0].transcript.trim();
-    if (!transcript) return;
-
-    console.log("👂 Heard:", transcript);
-
-    // 🧠 USER CONTEXT ADD
+    /* ==================================================
+       🧠 CONTEXT MEMORY (USER)
+       ================================================== */
     if (window.ContextMemory) {
       ContextMemory.addUserUtterance(transcript);
     }
 
-    // 🔁 User spoke → reset silence timer
-    resetIdleTimer();
-
+    /* ==================================================
+       🧠 REASONING / ANSWER
+       ================================================== */
     let reply = "इस प्रश्न का उत्तर मेरे ज्ञान में नहीं है।";
 
     try {
@@ -84,17 +57,23 @@
       reply = "उत्तर देने में मुझे कठिनाई हुई।";
     }
 
-    // 🧠 ANJALI REPLY CONTEXT ADD
+    /* ==================================================
+       🧠 CONTEXT MEMORY (ANJALI)
+       ================================================== */
     if (window.ContextMemory) {
       ContextMemory.addAnjaliReply(reply);
     }
 
-    // 🔊 Speak answer ONLY ONCE
+    /* ==================================================
+       🔊 SPEAK ANSWER (ONCE)
+       ================================================== */
     if (window.TTS) {
       TTS.speak(reply);
     }
 
-    // 🔕 After answer → stay silent, keep ear open
+    /* ==================================================
+       🔕 उत्तर के बाद → सुनते रहो
+       ================================================== */
     waitForSpeechEnd(() => {
       if (listening) {
         start();
@@ -102,10 +81,11 @@
     });
   };
 
-  /* ---------- END ---------- */
+  /* ==================================================
+     🔚 END / ERROR HANDLING
+     ================================================== */
   recognition.onend = function () {
     active = false;
-
     if (listening && !speechSynthesis.speaking) {
       setTimeout(start, 300);
     }
@@ -118,7 +98,9 @@
     }
   };
 
-  /* ---------- UTILITY ---------- */
+  /* ==================================================
+     🔧 UTILITY
+     ================================================== */
   function waitForSpeechEnd(cb) {
     const i = setInterval(() => {
       if (!speechSynthesis.speaking) {
@@ -128,7 +110,9 @@
     }, 120);
   }
 
-  /* ---------- EXPOSE ---------- */
+  /* ==================================================
+     🌐 EXPOSE API
+     ================================================== */
   window.STT = {
     start() {
       listening = true;
