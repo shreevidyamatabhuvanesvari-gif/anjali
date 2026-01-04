@@ -1,7 +1,10 @@
 /* =========================================================
    voice/stt.js
-   Role: Idle-based Continuous Listening (USER-DRIVEN)
-   RAM Profile: ~5–10 MB (safe, bounded)
+   Role: ROCK-SOLID Speech-To-Text Driver
+   GUARANTEE:
+   - STT + TTS NEVER blocked
+   - Memory / Reasoning errors NEVER stop voice
+   - 2-minute idle logic stable & resettable
    ========================================================= */
 
 (function (window) {
@@ -18,11 +21,11 @@
   const recognition = new SpeechRecognition();
   recognition.lang = "hi-IN";
   recognition.interimResults = false;
-  recognition.continuous = false; // browser constraint
+  recognition.continuous = false;
 
-  let active = false;        // recognition engine running
-  let listening = false;     // conversation session alive
-  let idleTimer = null;      // silence timer
+  let active = false;
+  let listening = false;
+  let idleTimer = null;
 
   const IDLE_LIMIT = 120000; // 2 minutes
 
@@ -31,17 +34,14 @@
     clearTimeout(idleTimer);
     idleTimer = setTimeout(() => {
       listening = false;
-      try {
-        recognition.stop();
-      } catch (_) {}
-      console.log("⏹️ Mic closed after 2 minutes of silence");
+      try { recognition.stop(); } catch (_) {}
+      console.log("⏹️ Mic closed (idle)");
     }, IDLE_LIMIT);
   }
 
   /* ---------- START LISTENING ---------- */
   function start() {
     if (active || !listening) return;
-
     try {
       recognition.start();
       active = true;
@@ -57,20 +57,15 @@
     active = false;
 
     if (!event.results || !event.results[0]) return;
-
     const transcript = event.results[0][0].transcript.trim();
     if (!transcript) return;
 
     console.log("👂 Heard:", transcript);
 
-    // 🧠 USER CONTEXT ADD
-    if (window.ContextMemory) {
-      ContextMemory.addUserUtterance(transcript);
-    }
-
-    // 🔁 User spoke → reset silence timer
+    // 🔁 ALWAYS reset idle timer
     resetIdleTimer();
 
+    /* ---------- ANSWER (VOICE-FIRST POLICY) ---------- */
     let reply = "इस प्रश्न का उत्तर मेरे ज्ञान में नहीं है।";
 
     try {
@@ -80,32 +75,40 @@
         reply = await AnswerEngine.answer(transcript);
       }
     } catch (e) {
-      console.error("Answer error:", e);
+      console.error("Reasoning error:", e);
       reply = "उत्तर देने में मुझे कठिनाई हुई।";
     }
 
-    // 🧠 ANJALI REPLY CONTEXT ADD
-    if (window.ContextMemory) {
-      ContextMemory.addAnjaliReply(reply);
-    }
-
-    // 🔊 Speak answer ONLY ONCE
-    if (window.TTS) {
-      TTS.speak(reply);
-    }
-
-    // 🔕 After answer → stay silent, keep ear open
-    waitForSpeechEnd(() => {
-      if (listening) {
-        start();
+    /* ---------- SPEAK (NEVER BLOCKED) ---------- */
+    try {
+      if (window.TTS) {
+        TTS.speak(reply);
       }
+    } catch (e) {
+      console.error("TTS error:", e);
+    }
+
+    /* ---------- MEMORY (PASSIVE, NON-BLOCKING) ---------- */
+    setTimeout(() => {
+      try {
+        if (window.ContextMemory) {
+          ContextMemory.addUserUtterance(transcript);
+          ContextMemory.addAnjaliReply(reply);
+        }
+      } catch (e) {
+        console.warn("ContextMemory skipped:", e);
+      }
+    }, 0);
+
+    /* ---------- CONTINUE LISTENING ---------- */
+    waitForSpeechEnd(() => {
+      if (listening) start();
     });
   };
 
-  /* ---------- END ---------- */
+  /* ---------- END / ERROR ---------- */
   recognition.onend = function () {
     active = false;
-
     if (listening && !speechSynthesis.speaking) {
       setTimeout(start, 300);
     }
@@ -137,9 +140,7 @@
     stop() {
       listening = false;
       clearTimeout(idleTimer);
-      try {
-        recognition.stop();
-      } catch (_) {}
+      try { recognition.stop(); } catch (_) {}
     }
   };
 
