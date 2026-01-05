@@ -34,7 +34,7 @@
     } catch (_) {}
   }
 
-  /* ================= TEXT CHUNKER (CHAR-LENGTH BASED) ================= */
+/* ================= TEXT CHUNKER (CHAR-LENGTH SAFE) ================= */
 function splitIntoChunks(text) {
   if (!text) return [];
 
@@ -42,7 +42,7 @@ function splitIntoChunks(text) {
     .replace(/\s+/g, " ")
     .trim();
 
-  const MAX_CHARS = 140; // ✅ safe length (mobile Chrome friendly)
+  const MAX_CHARS = 140;
   const chunks = [];
 
   let buffer = "";
@@ -50,15 +50,38 @@ function splitIntoChunks(text) {
   for (let i = 0; i < cleaned.length; i++) {
     buffer += cleaned[i];
 
-    // यदि buffer limit पार हो जाए
+    // यदि सीमा के पास पहुँच गए
     if (buffer.length >= MAX_CHARS) {
-      chunks.push(buffer.trim());
-      buffer = "";
+
+      // 🔒 सुरक्षित कट ढूँढो (space या punctuation)
+      let cutIndex = Math.max(
+        buffer.lastIndexOf(" "),
+        buffer.lastIndexOf("।"),
+        buffer.lastIndexOf(",")
+      );
+
+      // यदि कुछ नहीं मिला → ज़बरदस्ती मत काटो
+      if (cutIndex < 20) {
+        cutIndex = buffer.length;
+      }
+
+      let chunk = buffer.slice(0, cutIndex).trim();
+
+      // 🔑 विराम संकेत अनिवार्य
+      if (!/[।,]$/.test(chunk)) {
+        chunk += "।";
+      }
+
+      chunks.push(chunk);
+      buffer = buffer.slice(cutIndex).trim();
     }
   }
 
-  // अंतिम बचा हुआ हिस्सा
-  if (buffer.trim().length > 0) {
+  // अंतिम हिस्सा
+  if (buffer.length > 0) {
+    if (!/[।,]$/.test(buffer)) {
+      buffer += "।";
+    }
     chunks.push(buffer.trim());
   }
 
