@@ -37,45 +37,72 @@
 
   /* ================= TEXT CHUNKER ================= */
   function splitIntoChunks(text) {
-    if (!text) return [];
+  if (!text) return [];
 
-    return String(text)
-      .replace(/\s+/g, " ")
-      .split("।")
-      .map(s => s.trim())
-      .filter(Boolean)
-      .map(s => s + "।");
+  const cleaned = String(text)
+    .replace(/\s+/g, " ")
+    .trim();
+
+  // यदि पूरे पाठ में एक भी पूर्ण विराम नहीं है → पूरा एक ही chunk
+  if (!cleaned.includes("।")) {
+    return [cleaned];
   }
+
+  // पूर्ण विराम सहित सुरक्षित split
+  const parts = cleaned.match(/[^।]+।?/g);
+
+  return parts
+    .map(s => s.trim())
+    .filter(s => s.length > 0);
+}
 
   /* ================= CORE SPEAKER ================= */
   function playNext(sessionId) {
-    // ❌ session बदल चुका → रुक जाओ
+  function playNext(sessionId) {
+  // ❌ Session बदल चुका है → तुरंत रुक जाओ
+  if (sessionId !== currentSession) return;
+
+  // ❌ Queue खत्म → पूरी तरह चुप
+  if (!queue || queue.length === 0) {
+    speaking = false;
+    return;
+  }
+
+  speaking = true;
+  const text = queue.shift();
+
+  // ❌ खाली text सुरक्षा
+  if (!text) {
+    setTimeout(() => playNext(sessionId), 50);
+    return;
+  }
+
+  const u = new SpeechSynthesisUtterance(text);
+  u.lang   = "hi-IN";
+  u.rate   = 0.80;
+  u.pitch  = 1.21;
+  u.volume = 1;
+
+  const safeNext = () => {
+    // ⚠️ Callback fire हुआ लेकिन session बदल गया
     if (sessionId !== currentSession) return;
 
-    if (queue.length === 0) {
-      speaking = false;
-      return;
-    }
+    // micro-delay अनिवार्य (Chrome fix)
+    setTimeout(() => {
+      playNext(sessionId);
+    }, 120);
+  };
 
-    speaking = true;
-    const text = queue.shift();
+  u.onend = safeNext;
+  u.onerror = safeNext;
 
-    const u = new SpeechSynthesisUtterance(text);
-    u.lang   = "hi-IN";
-    u.rate   = 0.80;   // प्राकृतिक, मधुर
-    u.pitch  = 1.20;   // स्त्री-स्वर
-    u.volume = 1;
-
-    // ⚠️ onend भरोसेमंद नहीं → micro-delay अनिवार्य
-    const next = () => {
-      setTimeout(() => playNext(sessionId), 120);
-    };
-
-    u.onend = next;
-    u.onerror = next;
-
+  try {
     speechSynthesis.speak(u);
+  } catch (e) {
+    // ❌ speak fail हुआ → अगले chunk पर जाओ
+    safeNext();
   }
+}
 
   /* ================= PUBLIC API ================= */
   const TTS = {
@@ -90,46 +117,64 @@
           TTS.speak(
             "नमस्ते। मैं अंजली हूँ। " +
             "आपसे बात करके मुझे अच्छा लगेगा। " +
-            "जब चाहें, मुझसे कुछ भी पूछ सकते हैं।"
+            "जब चाहें, मुझसे दिल से कुछ भी पूछ सकते हैं।" +
+             "आपसे बात करके मुझे अच्छा लगेगा। " 
           );
         }, 400);
       }
     },
-
     speak(text) {
-      if (!text) return;
+  if (!text) return;
 
-      unlockAudio();
+  unlockAudio();
 
-      // 🔒 नया session — पुराने सभी callbacks अमान्य
-      currentSession++;
-      speechSynthesis.cancel();
-      queue = [];
-      speaking = false;
+  // 🔒 नया session — पुराने सभी callbacks अमान्य
+  currentSession++;
+  speechSynthesis.cancel();
+  queue = [];
+  speaking = false;
 
-      queue = splitIntoChunks(text);
-      if (queue.length === 0) return;
+  queue = splitIntoChunks(text);
+  if (queue.length === 0) return;
 
-      playNext(currentSession);
-    },
+  playNext(currentSession);
+},
 
     stop() {
-      currentSession++;
-      queue = [];
-      speaking = false;
-      speechSynthesis.cancel();
-    },
+  // 🔒 सभी पुराने callbacks अमान्य
+  currentSession++;
 
-    isSpeaking() {
-      return speaking;
-    }
-  };
+  // 🔕 queue साफ
+  queue = [];
 
-  window.TTS = TTS;
+  // ❗ पहले cancel बोलना
+  speechSynthesis.cancel();
 
-  // 🔁 auto-init (बिना refresh बातचीत के लिए)
+  // ⏳ browser को settle होने दो
   setTimeout(() => {
-    if (window.TTS) TTS.init();
-  }, 300);
+    speaking = false;
+  }, 0);
+},
+
+  // 🔐 Expose firs
+window.TTS = TTS;
+
+// 🔁 auto-init (USER-GESTURE SAFE)
+(function autoInitOnce() {
+  let initialized = false;
+
+  function safeInit() {
+    if (initialized) return;
+    initialized = true;
+
+    if (window.TTS && typeof window.TTS.init === "function") {
+      window.TTS.init();
+    }
+  }
+
+  // ✅ केवल user interaction के बाद init
+  document.addEventListener("click", safeInit, { once: true });
+  document.addEventListener("touchstart", safeInit, { once: true });
+})();
 
 })(window, document);
