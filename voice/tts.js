@@ -34,25 +34,36 @@
     } catch (_) {}
   }
 
-  /* ================= TEXT CHUNKER ================= */
-  function splitIntoChunks(text) {
-    if (!text) return [];
+  /* ================= TEXT CHUNKER (CHAR-LENGTH BASED) ================= */
+function splitIntoChunks(text) {
+  if (!text) return [];
 
-    const cleaned = String(text)
-      .replace(/\s+/g, " ")
-      .trim();
+  const cleaned = String(text)
+    .replace(/\s+/g, " ")
+    .trim();
 
-    if (!cleaned.includes("।")) {
-      return [cleaned];
+  const MAX_CHARS = 140; // ✅ safe length (mobile Chrome friendly)
+  const chunks = [];
+
+  let buffer = "";
+
+  for (let i = 0; i < cleaned.length; i++) {
+    buffer += cleaned[i];
+
+    // यदि buffer limit पार हो जाए
+    if (buffer.length >= MAX_CHARS) {
+      chunks.push(buffer.trim());
+      buffer = "";
     }
-
-    const parts = cleaned.match(/[^।]+।?/g) || [];
-
-    return parts
-      .map(s => s.trim())
-      .filter(s => s.length > 0);
   }
 
+  // अंतिम बचा हुआ हिस्सा
+  if (buffer.trim().length > 0) {
+    chunks.push(buffer.trim());
+  }
+
+  return chunks;
+}
   /* ================= CORE SPEAKER ================= */
   function playNext(sessionId) {
     if (sessionId !== currentSession) return;
