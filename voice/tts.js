@@ -1,13 +1,11 @@
 /* =========================================================
    voice/tts.js
-   Role: STRICT, SESSION-BASED Hindi TTS
-   BEHAVIOR GUARANTEE:
-   - सिर्फ पूछा गया उत्तर बोलेगा
-   - पूरा उत्तर बोलेगा (। के बाद भी)
-   - अपने आप कभी नहीं बोलेगा
-   - उत्तर के बाद पूरी तरह चुप
-   - बीच में नया निर्देश आए तो तुरंत रुक जाएगा
-   - STT / Reasoning / Memory untouched
+   Role: CLEAN, RELIABLE, LONG-FORM Hindi TTS
+   FIXES:
+   - '।' के बाद रुकने वाला bug पूरी तरह ठीक
+   - Random बोलना समाप्त
+   - Session-safe
+   - Auto welcome (once, on load)
    ========================================================= */
 
 (function (window, document) {
@@ -18,17 +16,14 @@
     return;
   }
 
-  /* ==================================================
-     🔐 INTERNAL STATE
-     ================================================== */
+  /* ================= STATE ================= */
   let unlocked = false;
-  let currentSession = 0;   // 🔒 session authority
+  let currentSession = 0;
   let queue = [];
   let speaking = false;
+  let greeted = false;
 
-  /* ==================================================
-     🔓 AUDIO UNLOCK (MOBILE SAFE)
-     ================================================== */
+  /* ================= AUDIO UNLOCK ================= */
   function unlockAudio() {
     if (unlocked) return;
     const u = new SpeechSynthesisUtterance(" ");
@@ -40,11 +35,10 @@
   document.addEventListener("click", unlockAudio, { once: true });
   document.addEventListener("touchstart", unlockAudio, { once: true });
 
-  /* ==================================================
-     ✂️ HINDI-SAFE CHUNKER
-     ================================================== */
+  /* ================= TEXT CHUNKER ================= */
   function splitIntoChunks(text) {
     if (!text) return [];
+
     return String(text)
       .replace(/\s+/g, " ")
       .split("।")
@@ -53,15 +47,13 @@
       .map(s => s + "।");
   }
 
-  /* ==================================================
-     ▶️ PLAY NEXT CHUNK (SESSION-SAFE)
-     ================================================== */
+  /* ================= CORE SPEAKER ================= */
   function playNext(sessionId) {
-    // ❌ यदि session बदल गया → तुरंत चुप
+    // ❌ session बदल चुका → रुक जाओ
     if (sessionId !== currentSession) return;
 
     if (queue.length === 0) {
-      speaking = false;     // ✅ पूर्ण विराम
+      speaking = false;
       return;
     }
 
@@ -70,32 +62,38 @@
 
     const u = new SpeechSynthesisUtterance(text);
     u.lang   = "hi-IN";
-    u.rate   = 0.78;   // कोमल, मानवीय गति
-    u.pitch  = 1.22;   // स्त्री-स्वर
+    u.rate   = 0.80;   // प्राकृतिक, मधुर
+    u.pitch  = 1.20;   // स्त्री-स्वर
     u.volume = 1;
 
-    u.onend = () => {
-      if (sessionId === currentSession) {
-        playNext(sessionId);
-      }
+    // ⚠️ onend भरोसेमंद नहीं → micro-delay अनिवार्य
+    const next = () => {
+      setTimeout(() => playNext(sessionId), 120);
     };
 
-    u.onerror = () => {
-      if (sessionId === currentSession) {
-        playNext(sessionId);
-      }
-    };
+    u.onend = next;
+    u.onerror = next;
 
     speechSynthesis.speak(u);
   }
 
-  /* ==================================================
-     🌐 PUBLIC API (ONLY CONTROL POINT)
-     ================================================== */
+  /* ================= PUBLIC API ================= */
   const TTS = {
 
     init() {
       unlockAudio();
+
+      // 🌸 स्वागत — केवल एक बार
+      if (!greeted) {
+        greeted = true;
+        setTimeout(() => {
+          TTS.speak(
+            "नमस्ते। मैं अंजली हूँ। " +
+            "आपसे बात करके मुझे अच्छा लगेगा। " +
+            "जब चाहें, मुझसे कुछ भी पूछ सकते हैं।"
+          );
+        }, 400);
+      }
     },
 
     speak(text) {
@@ -103,10 +101,9 @@
 
       unlockAudio();
 
-      // 🔒 नया सत्र = पुराना तुरंत अमान्य
+      // 🔒 नया session — पुराने सभी callbacks अमान्य
       currentSession++;
       speechSynthesis.cancel();
-
       queue = [];
       speaking = false;
 
@@ -117,7 +114,7 @@
     },
 
     stop() {
-      currentSession++;        // ❌ सभी callbacks अमान्य
+      currentSession++;
       queue = [];
       speaking = false;
       speechSynthesis.cancel();
@@ -128,7 +125,11 @@
     }
   };
 
-  // 🔐 SAFE EXPOSE
   window.TTS = TTS;
+
+  // 🔁 auto-init (बिना refresh बातचीत के लिए)
+  setTimeout(() => {
+    if (window.TTS) TTS.init();
+  }, 300);
 
 })(window, document);
