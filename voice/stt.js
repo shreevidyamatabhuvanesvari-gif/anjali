@@ -61,15 +61,25 @@
   /* ==================================================
      🎧 RESULT (USER SPOKE)
      ================================================== */
-  recognition.onresult = async function (event) {
-    active = false;
+recognition.onresult = async function (event) {
+  active = false;
 
-    if (!event.results || !event.results[0]) return;
-    const transcript = event.results[0][0].transcript.trim();
-    if (!transcript) return;
+  // 🔒 CORE FIX — TTS की अपनी आवाज़ को प्रश्न न माने
+  if (
+    window.TTS &&
+    typeof TTS.isSpeaking === "function" &&
+    TTS.isSpeaking()
+  ) {
+    return;
+  }
 
-    console.log("👂 Heard:", transcript);
-    resetIdleTimer();
+  if (!event.results || !event.results[0]) return;
+
+  const transcript = event.results[0][0].transcript.trim();
+  if (!transcript) return;
+
+  console.log("👂 Heard:", transcript);
+  resetIdleTimer();
 
     /* ==================================================
        🛑 BARGE-IN DETECTION
