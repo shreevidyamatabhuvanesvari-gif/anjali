@@ -1,9 +1,11 @@
 /* =========================================================
    voice/tts.js
-   Role: LONG ANSWER SAFE Hindi TTS (Chunked)
+   Role: Stable Long-Form Hindi TTS (Chunked, Voice-Safe)
    GUARANTEE:
-   - 10–20 लाइन का उत्तर पूरा बोलेगा
-   - आवाज कभी बीच में नहीं कटेगी
+   - पूरा उत्तर बोलेगा (। के बाद भी)
+   - बीच में नहीं रुकेगा
+   - Random speech नहीं होगी
+   - STT / Reasoning / Memory untouched
    ========================================================= */
 
 (function (window, document) {
@@ -15,9 +17,12 @@
   }
 
   let unlocked = false;
-  let speakingQueue = [];
-  let isSpeaking = false;
+  let queue = [];
+  let speaking = false;
 
+  /* ==================================================
+     🔓 AUDIO UNLOCK (MOBILE SAFE)
+     ================================================== */
   function unlockAudio() {
     if (unlocked) return;
     const u = new SpeechSynthesisUtterance(" ");
@@ -29,48 +34,57 @@
   document.addEventListener("click", unlockAudio, { once: true });
   document.addEventListener("touchstart", unlockAudio, { once: true });
 
-  /* ---------- TEXT CHUNKER ---------- */
-  function splitText(text, maxLen = 220) {
-    const parts = [];
-    let current = "";
+  /* ==================================================
+     ✂️ TEXT CHUNKER (Hindi Safe)
+     ================================================== */
+  function splitIntoChunks(text) {
+    if (!text) return [];
 
-    text.split(" ").forEach(word => {
-      if ((current + word).length > maxLen) {
-        parts.push(current.trim());
-        current = word + " ";
-      } else {
-        current += word + " ";
-      }
-    });
-
-    if (current.trim()) parts.push(current.trim());
-    return parts;
+    return String(text)
+      .replace(/\s+/g, " ")
+      .split("।")
+      .map(s => s.trim())
+      .filter(Boolean)
+      .map(s => s + "।");
   }
 
-  /* ---------- SPEAK QUEUE ---------- */
+  /* ==================================================
+     ▶️ PLAY NEXT CHUNK (SEQUENTIAL)
+     ================================================== */
   function speakNext() {
-    if (speakingQueue.length === 0) {
-      isSpeaking = false;
+    if (queue.length === 0) {
+      speaking = false;
       return;
     }
 
-    isSpeaking = true;
-    const text = speakingQueue.shift();
+    speaking = true;
+    const text = queue.shift();
 
     const u = new SpeechSynthesisUtterance(text);
-    u.lang = "hi-IN";
-    u.rate = 0.85;
-    u.pitch = 1.15;
+    u.lang   = "hi-IN";
+
+    // 🌸 मधुर, स्त्री-स्वर
+    u.rate   = 0.78;   // कोमल गति
+    u.pitch  = 1.22;   // स्त्री-स्वर
     u.volume = 1;
 
     u.onend = () => {
-      setTimeout(speakNext, 120); // natural pause
+      // छोटा प्राकृतिक विराम
+      setTimeout(speakNext, 120);
+    };
+
+    u.onerror = () => {
+      setTimeout(speakNext, 120);
     };
 
     speechSynthesis.speak(u);
   }
 
+  /* ==================================================
+     🌐 PUBLIC API
+     ================================================== */
   const TTS = {
+
     init() {
       unlockAudio();
     },
@@ -79,18 +93,29 @@
       if (!text) return;
 
       unlockAudio();
+
+      // 🔒 पुरानी speech पूरी तरह बंद
       speechSynthesis.cancel();
-      speakingQueue = splitText(String(text));
+      queue = [];
+      speaking = false;
+
+      // ✂️ chunk बनाओ
+      queue = splitIntoChunks(text);
+
+      if (queue.length === 0) return;
+
+      // ▶️ बोलना शुरू
       speakNext();
     },
 
     stop() {
-      speakingQueue = [];
+      queue = [];
+      speaking = false;
       speechSynthesis.cancel();
-      isSpeaking = false;
     }
   };
 
+  // 🔐 EXPOSE (SAFE)
   window.TTS = TTS;
 
 })(window, document);
