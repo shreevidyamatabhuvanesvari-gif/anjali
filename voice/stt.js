@@ -1,10 +1,11 @@
 /* =========================================================
    voice/stt.js
-   Role: ROCK-SOLID Speech-To-Text Driver
+   Role: HUMAN-LIKE Speech-To-Text Driver (BARGE-IN ENABLED)
    GUARANTEE:
-   - STT + TTS NEVER blocked
-   - Memory / Reasoning errors NEVER stop voice
-   - 2-minute idle logic stable & resettable
+   - TTS बोलते समय भी STT सुनेगा
+   - User interrupt कर सकता है
+   - TTS की अपनी आवाज़ ignore होगी
+   - 2-minute idle logic स्थिर
    ========================================================= */
 
 (function (window) {
@@ -29,7 +30,9 @@
 
   const IDLE_LIMIT = 120000; // 2 minutes
 
-  /* ---------- IDLE TIMER ---------- */
+  /* ==================================================
+     ⏱️ IDLE TIMER
+     ================================================== */
   function resetIdleTimer() {
     clearTimeout(idleTimer);
     idleTimer = setTimeout(() => {
@@ -39,9 +42,12 @@
     }, IDLE_LIMIT);
   }
 
-  /* ---------- START LISTENING ---------- */
+  /* ==================================================
+     🎤 START LISTENING
+     ================================================== */
   function start() {
     if (active || !listening) return;
+
     try {
       recognition.start();
       active = true;
@@ -52,7 +58,9 @@
     }
   }
 
-  /* ---------- RESULT (USER SPOKE) ---------- */
+  /* ==================================================
+     🎧 RESULT (USER SPOKE)
+     ================================================== */
   recognition.onresult = async function (event) {
     active = false;
 
@@ -61,11 +69,24 @@
     if (!transcript) return;
 
     console.log("👂 Heard:", transcript);
-
-    // 🔁 ALWAYS reset idle timer
     resetIdleTimer();
 
-    /* ---------- ANSWER (VOICE-FIRST POLICY) ---------- */
+    /* ==================================================
+       🛑 BARGE-IN DETECTION
+       ================================================== */
+    if (window.TTS && TTS.isSpeaking()) {
+      // यूज़र ने बीच में बोला → TTS बंद
+      TTS.stop();
+      console.log("✋ User interrupted TTS");
+    }
+
+    /* ---------- READING MODE ---------- */
+    if (window.ReadingMode && ReadingMode.isActive()) {
+      ReadingMode.addText(transcript);
+      return;
+    }
+
+    /* ---------- ANSWER ---------- */
     let reply = "इस प्रश्न का उत्तर मेरे ज्ञान में नहीं है।";
 
     try {
@@ -79,7 +100,7 @@
       reply = "उत्तर देने में मुझे कठिनाई हुई।";
     }
 
-    /* ---------- SPEAK (NEVER BLOCKED) ---------- */
+    /* ---------- SPEAK ---------- */
     try {
       if (window.TTS) {
         TTS.speak(reply);
@@ -88,16 +109,14 @@
       console.error("TTS error:", e);
     }
 
-    /* ---------- MEMORY (PASSIVE, NON-BLOCKING) ---------- */
+    /* ---------- PASSIVE MEMORY ---------- */
     setTimeout(() => {
       try {
         if (window.ContextMemory) {
           ContextMemory.addUserUtterance(transcript);
           ContextMemory.addAnjaliReply(reply);
         }
-      } catch (e) {
-        console.warn("ContextMemory skipped:", e);
-      }
+      } catch (_) {}
     }, 0);
 
     /* ---------- CONTINUE LISTENING ---------- */
@@ -106,10 +125,12 @@
     });
   };
 
-  /* ---------- END / ERROR ---------- */
+  /* ==================================================
+     🔚 END / ERROR
+     ================================================== */
   recognition.onend = function () {
     active = false;
-    if (listening && !speechSynthesis.speaking) {
+    if (listening) {
       setTimeout(start, 300);
     }
   };
@@ -121,17 +142,21 @@
     }
   };
 
-  /* ---------- UTILITY ---------- */
+  /* ==================================================
+     🧰 UTILITY
+     ================================================== */
   function waitForSpeechEnd(cb) {
     const i = setInterval(() => {
-      if (!speechSynthesis.speaking) {
+      if (!(window.TTS && TTS.isSpeaking())) {
         clearInterval(i);
         cb();
       }
     }, 120);
   }
 
-  /* ---------- EXPOSE ---------- */
+  /* ==================================================
+     🌐 EXPOSE
+     ================================================== */
   window.STT = {
     start() {
       listening = true;
