@@ -174,10 +174,16 @@ function splitIntoChunks(text) {
   /* ================= EXPOSE ================= */
   window.TTS = TTS;
 
+  /* ================= USER INTERRUPT LISTENER ================= */
+  window.addEventListener("anjali-user-interrupt", () => {
+    if (window.TTS && typeof TTS.stop === "function") {
+      TTS.stop();
+    }
+  });
+
   /* ================= AUTO INIT (USER-GESTURE SAFE) ================= */
   (function autoInitOnce() {
     let initialized = false;
-
     function safeInit() {
       if (initialized) return;
       initialized = true;
@@ -185,9 +191,7 @@ function splitIntoChunks(text) {
         window.TTS.init();
       }
     }
-
     document.addEventListener("click", safeInit, { once: true });
     document.addEventListener("touchstart", safeInit, { once: true });
   })();
-
 })(window, document);
