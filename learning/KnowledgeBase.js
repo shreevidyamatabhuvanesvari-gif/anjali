@@ -11,56 +11,94 @@
 (function (window) {
   "use strict";
 
+  // 🔐 Database identity (stable)
   const DB_NAME = "AnjaliKnowledgeDB";
-  const DB_VERSION = 1;
+
+  // ✅ VERSION बढ़ाया गया ताकि schema हमेशा सही apply हो
+  // (पुराना ज्ञान सुरक्षित रहेगा)
+  const DB_VERSION = 2;
+
+  // 🔐 Store name (unchanged)
   const STORE = "qa_store";
 
+  // ✅ DB handle (controlled lifecycle)
   let db = null;
 
-  /* ---------- OPEN DATABASE (STABLE) ---------- */
-  function openDB() {
-    if (db) return Promise.resolve(db);
+/* ---------- OPEN DATABASE (STABLE & SAFE) ---------- */
+function openDB() {
+  // ✅ पहले से खुला है तो वही लौटाओ
+  if (db) return Promise.resolve(db);
 
-    return new Promise((resolve, reject) => {
-      const req = indexedDB.open(DB_NAME, DB_VERSION);
+  return new Promise((resolve, reject) => {
+    let req;
+    try {
+      req = indexedDB.open(DB_NAME, DB_VERSION);
+    } catch (e) {
+      reject(e);
+      return;
+    }
 
-      req.onupgradeneeded = function (e) {
-        const d = e.target.result;
-        if (!d.objectStoreNames.contains(STORE)) {
-          d.createObjectStore(STORE, {
-            keyPath: "id",
-            autoIncrement: true
-          });
-        }
+    // 🔧 Schema upgrade (safe)
+    req.onupgradeneeded = function (e) {
+      const d = e.target.result;
+
+      // ❗ Store केवल एक बार बने
+      if (!d.objectStoreNames.contains(STORE)) {
+        d.createObjectStore(STORE, {
+          keyPath: "id",
+          autoIncrement: true
+        });
+      }
+    };
+
+    // ✅ Success → DB handle सुरक्षित रूप से सेट
+    req.onsuccess = function (e) {
+      db = e.target.result;
+
+      // ⚠️ Version change safety (silent)
+      db.onversionchange = function () {
+        db.close();
+        db = null;
       };
 
-      req.onsuccess = function (e) {
-        db = e.target.result;
-        resolve(db);
-      };
+      resolve(db);
+    };
 
-      req.onerror = function () {
-        reject(new Error("IndexedDB open failed"));
-      };
-    });
+    // ❌ Error handling (explicit)
+    req.onerror = function () {
+      reject(new Error("IndexedDB open failed"));
+    };
+
+    // ⚠️ Blocked state (rare but real)
+    req.onblocked = function () {
+      console.warn("IndexedDB open blocked by another tab");
+    };
+  });
+}
+
+  /* ---------- NORMALIZE (Reasoning-friendly & SAFE) ---------- */
+function normalize(text) {
+  if (text === null || text === undefined) return "";
+
+  return String(text)
+    .toLowerCase()
+    // हिंदी अक्षर + स्पेस सुरक्षित
+    .replace(/[^\u0900-\u097F\s]/g, " ")
+    // अतिरिक्त स्पेस हटाओ
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+  /* Init (SAFE & NON-BLOCKING) */
+async init() {
+  try {
+    await openDB();
+    return true;
+  } catch (e) {
+    console.warn("KnowledgeBase init failed:", e);
+    return false;
   }
-
-  /* ---------- NORMALIZE (Reasoning-friendly) ---------- */
-  function normalize(text) {
-    return String(text || "")
-      .toLowerCase()
-      .replace(/[^\u0900-\u097F\s]/g, "")
-      .trim();
-  }
-
-  /* ---------- API ---------- */
-  const KnowledgeBase = {
-
-    /* Init */
-    async init() {
-      await openDB();
-      return true;
-    },
+},
 
     /* ---------- SAVE SINGLE (GUARANTEED) ---------- */
     async saveOne({ question, answer, tags = [] }) {
@@ -87,25 +125,60 @@
       });
     },
 
-    /* ---------- GET ALL (REASONING-SAFE) ---------- */
-    async getAll() {
-      const d = await openDB();
+    /* ---------- GET ALL (STABLE & SAFE) ---------- */
+async getAll() {
+  let d;
 
-      return new Promise((resolve) => {
-        const tx = d.transaction(STORE, "readonly");
-        const store = tx.objectStore(STORE);
-        const req = store.getAll();
+  try {
+    d = await openDB();
+  } catch (e) {
+    console.warn("KnowledgeBase.getAll: DB open failed", e);
+    return [];
+  }
 
-        req.onsuccess = () => {
-          resolve(Array.isArray(req.result) ? req.result : []);
-        };
+  return new Promise((resolve) => {
+    let resolved = false;
 
-        req.onerror = () => resolve([]);
-      });
+    try {
+      const tx = d.transaction(STORE, "readonly");
+      const store = tx.objectStore(STORE);
+      const req = store.getAll();
+
+      req.onsuccess = () => {
+        if (resolved) return;
+        resolved = true;
+
+        const result = Array.isArray(req.result)
+          ? req.result.slice()   // 🔒 immutable copy
+          : [];
+
+        resolve(result);
+      };
+
+      req.onerror = () => {
+        if (resolved) return;
+        resolved = true;
+        resolve([]);
+      };
+
+      tx.onerror = () => {
+        if (resolved) return;
+        resolved = true;
+        resolve([]);
+      };
+
+    } catch (e) {
+      resolve([]);
     }
-  };
+  });
+}
 
-  /* ---------- EXPOSE ---------- */
-  window.KnowledgeBase = KnowledgeBase;
+  /* ---------- EXPOSE (LOCKED & SAFE) ---------- */
+Object.defineProperty(window, "KnowledgeBase", {
+  value: KnowledgeBase,
+  writable: false,      // ❌ overwrite नहीं होगा
+  configurable: false, // ❌ delete / redefine नहीं होगा
+  enumerable: false
+});
 
 })(window);
