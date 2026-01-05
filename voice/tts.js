@@ -1,10 +1,11 @@
 /* =========================================================
    voice/tts.js
-   Role: Stable Long-Form Hindi TTS (Chunked, Voice-Safe)
-   GUARANTEE:
+   Role: STRICT, SESSION-BASED Hindi TTS
+   BEHAVIOR GUARANTEE:
+   - सिर्फ पूछा गया उत्तर बोलेगा
    - पूरा उत्तर बोलेगा (। के बाद भी)
-   - बीच में नहीं रुकेगा
-   - Random speech नहीं होगी
+   - अपने आप कभी नहीं बोलेगा
+   - उत्तर के बाद पूरी तरह चुप
    - STT / Reasoning / Memory untouched
    ========================================================= */
 
@@ -17,6 +18,9 @@
   }
 
   let unlocked = false;
+
+  // 🔒 session control (ROOT FIX)
+  let currentSession = 0;
   let queue = [];
   let speaking = false;
 
@@ -39,7 +43,6 @@
      ================================================== */
   function splitIntoChunks(text) {
     if (!text) return [];
-
     return String(text)
       .replace(/\s+/g, " ")
       .split("।")
@@ -49,32 +52,36 @@
   }
 
   /* ==================================================
-     ▶️ PLAY NEXT CHUNK (SEQUENTIAL)
+     ▶️ PLAY NEXT (SESSION SAFE)
      ================================================== */
-  function speakNext() {
+  function playNext(sessionId) {
+    // ❗ session invalid → HARD STOP
+    if (sessionId !== currentSession) return;
+
     if (queue.length === 0) {
       speaking = false;
-      return;
+      return; // ✅ पूरी तरह चुप
     }
 
     speaking = true;
     const text = queue.shift();
 
     const u = new SpeechSynthesisUtterance(text);
-    u.lang   = "hi-IN";
-
-    // 🌸 मधुर, स्त्री-स्वर
-    u.rate   = 0.78;   // कोमल गति
-    u.pitch  = 1.22;   // स्त्री-स्वर
+    u.lang = "hi-IN";
+    u.rate = 0.78;
+    u.pitch = 1.22;
     u.volume = 1;
 
     u.onend = () => {
-      // छोटा प्राकृतिक विराम
-      setTimeout(speakNext, 120);
+      if (sessionId === currentSession) {
+        playNext(sessionId);
+      }
     };
 
     u.onerror = () => {
-      setTimeout(speakNext, 120);
+      if (sessionId === currentSession) {
+        playNext(sessionId);
+      }
     };
 
     speechSynthesis.speak(u);
@@ -94,28 +101,30 @@
 
       unlockAudio();
 
-      // 🔒 पुरानी speech पूरी तरह बंद
+      // 🔒 NEW SESSION (ROOT FIX)
+      currentSession++;
       speechSynthesis.cancel();
       queue = [];
       speaking = false;
 
-      // ✂️ chunk बनाओ
       queue = splitIntoChunks(text);
-
       if (queue.length === 0) return;
 
-      // ▶️ बोलना शुरू
-      speakNext();
+      playNext(currentSession);
     },
 
     stop() {
+      currentSession++;   // invalidate all callbacks
       queue = [];
       speaking = false;
       speechSynthesis.cancel();
+    },
+
+    isSpeaking() {
+      return speaking;
     }
   };
 
-  // 🔐 EXPOSE (SAFE)
   window.TTS = TTS;
 
 })(window, document);
