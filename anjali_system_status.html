@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="hi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>🌸 Anjali App — System Status</title>
+
+<style>
+body{
+  margin:0;
+  font-family:'Segoe UI',sans-serif;
+  background:linear-gradient(135deg,#fff0f5,#fde2ea);
+}
+
+.container{
+  max-width:900px;
+  margin:20px auto;
+  padding:20px;
+}
+
+h1{
+  text-align:center;
+  color:#8b0037;
+  margin-bottom:10px;
+}
+
+.subtitle{
+  text-align:center;
+  color:#555;
+  margin-bottom:30px;
+}
+
+.card{
+  background:#fff;
+  border-radius:18px;
+  padding:18px;
+  margin-bottom:18px;
+  box-shadow:0 8px 18px rgba(0,0,0,0.1);
+}
+
+.file-row{
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  margin-bottom:8px;
+}
+
+.file-name{
+  font-weight:600;
+  color:#333;
+}
+
+.percent{
+  font-weight:bold;
+  color:#8b0037;
+}
+
+.progress{
+  width:100%;
+  height:10px;
+  background:#eee;
+  border-radius:10px;
+  overflow:hidden;
+  margin:8px 0;
+}
+
+.bar{
+  height:100%;
+  border-radius:10px;
+  background:linear-gradient(90deg,#ff6a88,#ff99ac);
+}
+
+.actions{
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+}
+
+.status{
+  font-size:14px;
+  color:#666;
+}
+
+button{
+  background:linear-gradient(135deg,#ff6a88,#ff2f68);
+  border:none;
+  color:#fff;
+  padding:6px 14px;
+  border-radius:20px;
+  font-size:13px;
+  cursor:pointer;
+  box-shadow:0 4px 10px rgba(0,0,0,0.2);
+}
+
+button:hover{
+  opacity:0.9;
+}
+
+.footer{
+  text-align:center;
+  margin-top:30px;
+  font-size:13px;
+  color:#777;
+}
+</style>
+</head>
+
+<body>
+
+<div class="container">
+  <h1>🌸 Anjali App — System Status</h1>
+  <div class="subtitle">अंजली की चेतना, स्मृति और संवाद की स्थिति</div>
+
+  <!-- FILE CARD -->
+  <div class="card">
+    <div class="file-row">
+      <div class="file-name">core/AnjaliCore.js</div>
+      <div class="percent">95%</div>
+    </div>
+    <div class="progress">
+      <div class="bar" style="width:95%"></div>
+    </div>
+    <div class="actions">
+      <div class="status">स्थिति: लगभग पूर्ण</div>
+      <button>देखें</button>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="file-row">
+      <div class="file-name">memory/LongTermMemory.js</div>
+      <div class="percent">90%</div>
+    </div>
+    <div class="progress">
+      <div class="bar" style="width:90%"></div>
+    </div>
+    <div class="actions">
+      <div class="status">स्थिति: स्थिर</div>
+      <button>देखें</button>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="file-row">
+      <div class="file-name">dialogue/DialogueGenerator.js</div>
+      <div class="percent">60%</div>
+    </div>
+    <div class="progress">
+      <div class="bar" style="width:60%"></div>
+    </div>
+    <div class="actions">
+      <div class="status">स्थिति: विकासशील</div>
+      <button>देखें</button>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="file-row">
+      <div class="file-name">voice/speech_output.js</div>
+      <div class="percent">40%</div>
+    </div>
+    <div class="progress">
+      <div class="bar" style="width:40%"></div>
+    </div>
+    <div class="actions">
+      <div class="status">स्थिति: प्रारंभिक</div>
+      <button>देखें</button>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="file-row">
+      <div class="file-name">emotion/EmotionDetector.js</div>
+      <div class="percent">30%</div>
+    </div>
+    <div class="progress">
+      <div class="bar" style="width:30%"></div>
+    </div>
+    <div class="actions">
+      <div class="status">स्थिति: निर्माणाधीन</div>
+      <button>देखें</button>
+    </div>
+  </div>
+
+  <div class="footer">
+    🌸 Anjali App • Emotional System Monitor
+  </div>
+</div>
+
+</body>
+</html>
