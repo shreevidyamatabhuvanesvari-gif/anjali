@@ -27,6 +27,7 @@
   let active = false;
   let listening = false;
   let idleTimer = null;
+   let lastUserQuestion = "";
 
   const IDLE_LIMIT = 120000; // 2 minutes
 
@@ -60,15 +61,28 @@
      🎧 RESULT (USER SPOKE)
      ================================================== */
   recognition.onresult = async function (event) {
-    active = false;
+  active = false;
 
-    if (!event.results || !event.results[0] || !event.results[0][0]) {
-      if (listening) start();
-      return;
-    }
+  if (!event.results || !event.results[0] || !event.results[0][0]) {
+    if (listening) start();
+    return;
+  }
 
-    const transcript = event.results[0][0].transcript.trim();
+  const transcript = event.results[0][0].transcript.trim();
+  if (!transcript) {
+    if (listening) start();
+    return;
+  }
 
+  /* ===============================
+     🛑 DUPLICATE QUESTION GUARD
+     =============================== */
+  if (transcript === lastUserQuestion) {
+    resetIdleTimer();
+    if (listening) start();
+    return;
+  }
+  lastUserQuestion = transcript;
     /* -------------------------------
        (B) SEMI-LISTENING FILTER
        शोर / साँस / mic-click ignore
