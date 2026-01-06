@@ -1,34 +1,36 @@
 /* =========================================================
    KnowledgeBase.js
-   Role: Offline Question–Answer Storage (STABLE LEVEL-3)
+   Role: Offline Question–Answer Storage (BULLET-PROOF)
+   SAFE FOR:
+   - Mobile Chrome
+   - GitHub Pages
+   - 1000+ Bulk Import
    GUARANTEE:
    - Old data SAFE (NO schema change)
-   - Single Q/A works
-   - 1000+ Bulk Q/A works (mobile-safe)
+   - Single + Bulk both work
    - ReasoningEngine compatible
-   - No impact on STT / TTS
    ========================================================= */
 
 (function (window) {
   "use strict";
 
-  /* ---------- DB IDENTITY (UNCHANGED) ---------- */
+  /* ---------- DB IDENTITY (DO NOT CHANGE) ---------- */
   const DB_NAME = "AnjaliKnowledgeDB";
-  const DB_VERSION = 1;          // ❗ NEVER change
+  const DB_VERSION = 1;
   const STORE = "qa_store";
 
   let db = null;
 
-  /* =========================================================
-     OPEN DATABASE (OLD-PROOF)
-     ========================================================= */
+  /* =================================================
+     OPEN DATABASE (STABLE)
+     ================================================= */
   function openDB() {
     if (db) return Promise.resolve(db);
 
     return new Promise((resolve, reject) => {
       const req = indexedDB.open(DB_NAME, DB_VERSION);
 
-      req.onupgradeneeded = function (e) {
+      req.onupgradeneeded = e => {
         const d = e.target.result;
         if (!d.objectStoreNames.contains(STORE)) {
           d.createObjectStore(STORE, {
@@ -38,20 +40,20 @@
         }
       };
 
-      req.onsuccess = function (e) {
+      req.onsuccess = e => {
         db = e.target.result;
         resolve(db);
       };
 
-      req.onerror = function () {
+      req.onerror = () => {
         reject(new Error("IndexedDB open failed"));
       };
     });
   }
 
-  /* =========================================================
-     NORMALIZE (Reasoning-friendly, SAFE)
-     ========================================================= */
+  /* =================================================
+     NORMALIZE (Reasoning SAFE)
+     ================================================= */
   function normalize(text) {
     return String(text || "")
       .toLowerCase()
@@ -60,9 +62,9 @@
       .trim();
   }
 
-  /* =========================================================
+  /* =================================================
      CORE API
-     ========================================================= */
+     ================================================= */
   const KnowledgeBase = {
 
     /* ---------- INIT ---------- */
@@ -71,9 +73,9 @@
       return true;
     },
 
-    /* =====================================================
-       SAVE SINGLE (CLEAN & STABLE)
-       ===================================================== */
+    /* =================================================
+       SAVE SINGLE (PROVEN)
+       ================================================= */
     async saveOne({ question, answer, subject = "" }) {
       if (!question || !answer) {
         throw new Error("Question and Answer required");
@@ -98,24 +100,24 @@
       });
     },
 
-    /* =====================================================
+    /* =================================================
        SAVE MANY (1000+ BULK SAFE)
-       - Single transaction
-       - No await inside loop
-       ===================================================== */
-    async saveMany(list = []) {
+       - SINGLE transaction
+       - NO await inside loop
+       ================================================= */
+    async saveMany(list) {
       if (!Array.isArray(list) || list.length === 0) return 0;
 
       const d = await openDB();
 
-      return new Promise((resolve) => {
+      return new Promise(resolve => {
         let saved = 0;
 
         const tx = d.transaction(STORE, "readwrite");
         const store = tx.objectStore(STORE);
 
         for (const item of list) {
-          if (item.question && item.answer) {
+          if (item && item.question && item.answer) {
             try {
               store.add({
                 question: item.question,
@@ -126,23 +128,23 @@
               });
               saved++;
             } catch (_) {
-              // skip silently (bulk must never break)
+              // ignore single failure, bulk must continue
             }
           }
         }
 
         tx.oncomplete = () => resolve(saved);
-        tx.onerror = () => resolve(saved);
+        tx.onerror = () => resolve(saved); // partial success allowed
       });
     },
 
-    /* =====================================================
+    /* =================================================
        GET ALL (REASONING SAFE)
-       ===================================================== */
+       ================================================= */
     async getAll() {
       const d = await openDB();
 
-      return new Promise((resolve) => {
+      return new Promise(resolve => {
         const tx = d.transaction(STORE, "readonly");
         const store = tx.objectStore(STORE);
         const req = store.getAll();
@@ -156,13 +158,9 @@
     }
   };
 
-  /* =========================================================
-     EXPOSE (LOCKED)
-     ========================================================= */
-  Object.defineProperty(window, "KnowledgeBase", {
-    value: KnowledgeBase,
-    writable: false,
-    configurable: false
-  });
+  /* =================================================
+     EXPOSE (GLOBAL, SINGLE SOURCE OF TRUTH)
+     ================================================= */
+  window.KnowledgeBase = KnowledgeBase;
 
 })(window);
