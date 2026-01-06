@@ -51,7 +51,7 @@
       padding:10px 12px;
       font-size:13px;
       color:#6b2c2c;
-      margin:10px 0 14px;
+      margin:10px 0 10px;
     }
     .actions{display:flex;gap:10px;justify-content:center;flex-wrap:wrap;}
     .btn{
@@ -83,7 +83,11 @@
   <div class="title">अंजली</div>
   <div class="subtitle">स्नेहपूर्ण • समझदार • मर्यादित</div>
 
+  <!-- STATUS -->
   <div class="status" id="appStatus">अंजली तैयार है</div>
+
+  <!-- EMOTION INDICATOR -->
+  <div class="status" id="emotionStatus">भाव: 😌 शांत</div>
 
   <div class="actions">
     <button class="btn" id="startBtn">शुरू करें</button>
@@ -92,8 +96,8 @@
 
   <div class="footer">Foundation • Stage-1</div>
 
-  <!-- 🌸 System Monitor Buttons -->
-  <div class="footer" style="margin-top:10px;">
+  <!-- 🌸 System Monitor -->
+  <div class="footer">
     <button onclick="openSystemStatus()" class="btn secondary">
       🌸 System Status
     </button>
@@ -127,30 +131,72 @@
 <script src="voice/stt.js"></script>
 
 <script>
-let audioUnlocked=false, conversationActive=false;
+/* ==============================
+   STABLE CONVERSATION + EMOTION
+   ============================== */
 
-function startConversation(){
-  const status=document.getElementById("appStatus");
-  if(window.TTS && !audioUnlocked){ TTS.init(); audioUnlocked=true; }
-  conversationActive=true;
-  status.textContent="मैं सुन रही हूँ…";
-  if(window.STT){ STT.start(); }
+let audioUnlocked = false;
+let conversationActive = false;
+
+/* 🎭 Emotion UI Update */
+function updateEmotion(emotion){
+  const emo = document.getElementById("emotionStatus");
+  if(!emo) return;
+
+  const map = {
+    happy: "😊 प्रसन्न",
+    sad: "😔 उदास",
+    caring: "🌸 स्नेहपूर्ण",
+    thinking: "🤔 विचारशील",
+    neutral: "😌 शांत"
+  };
+  emo.textContent = "भाव: " + (map[emotion] || map.neutral);
 }
 
-window.onAnjaliAnswered=function(){
+/* ▶️ Start Conversation */
+function startConversation(){
+  const status = document.getElementById("appStatus");
+
+  if(window.TTS && !audioUnlocked){
+    TTS.init();
+    audioUnlocked = true;
+  }
+
+  conversationActive = true;
+  status.textContent = "मैं सुन रही हूँ…";
+  updateEmotion("neutral");
+
+  if(window.STT){
+    STT.start();
+  }
+}
+
+/* 🔁 Called by AnswerEngine */
+window.onAnjaliAnswered = function (emotion){
   if(!conversationActive) return;
-  document.getElementById("appStatus").textContent="मैं सुन रही हूँ…";
-  setTimeout(()=>{ if(window.STT) STT.start(); },500);
+
+  updateEmotion(emotion || "neutral");
+
+  const status = document.getElementById("appStatus");
+  status.textContent = "मैं सुन रही हूँ…";
+
+  setTimeout(()=>{
+    if(window.STT && conversationActive){
+      STT.start();
+    }
+  },500);
 };
 
-document.getElementById("startBtn").onclick=startConversation;
-document.getElementById("adminBtn").onclick=()=>location.href="admin.html";
+/* 🔘 Button Bindings */
+document.getElementById("startBtn").onclick = startConversation;
+document.getElementById("adminBtn").onclick = ()=>location.href="admin.html";
 
+/* 🔗 Navigation */
 function openSystemStatus(){
-  location.href="anjali_system_status.html";
+  location.href = "anjali_system_status.html";
 }
 function openDiagnosticPanel(){
-  location.href="anjali_system_diagnostic.html";
+  location.href = "anjali_system_diagnostic.html";
 }
 </script>
 
