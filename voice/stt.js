@@ -70,13 +70,8 @@ recognition.onresult = async function (event) {
     typeof TTS.isSpeaking === "function" &&
     TTS.isSpeaking()
   ) {
-    return;
+    TTS.stop();   // बोलना रोको, यूज़र की बात सुनो;
   }
-
-  if (!event.results || !event.results[0]) return;
-
-  const transcript = event.results[0][0].transcript.trim();
-  if (!transcript) return;
 if (transcript.length < 4) return;
   console.log("👂 Heard:", transcript);
   resetIdleTimer();
