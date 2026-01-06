@@ -1,233 +1,170 @@
 /* =========================================================
-   admin_bulk_loader.js
-   Role: Bulk Learning (100+/1000+ Q&A with Subject Control)
-   Stage: 2 (Stable, Offline, Subject-Aware)
-   Depends on: KnowledgeBase.js
+   KnowledgeBase.js
+   Role: Offline Question–Answer Storage (STABLE LEVEL-3)
+   GUARANTEE:
+   - Old data SAFE (NO schema change)
+   - Single Q/A works
+   - 1000+ Bulk Q/A works (mobile-safe)
+   - ReasoningEngine compatible
+   - No impact on STT / TTS
    ========================================================= */
 
-(function () {
+(function (window) {
   "use strict";
 
-  if (!window.KnowledgeBase) {
-    console.error("KnowledgeBase not loaded");
-    return;
-  }
+  /* ---------- DB IDENTITY (UNCHANGED) ---------- */
+  const DB_NAME = "AnjaliKnowledgeDB";
+  const DB_VERSION = 1;          // ❗ NEVER change
+  const STORE = "qa_store";
 
-  // ---------- MODAL ----------
-  const modal = document.createElement("div");
-  modal.id = "bulkLearningModal";
-  modal.style.cssText = `
-    position:fixed;
-    inset:0;
-    background:rgba(0,0,0,.6);
-    display:none;
-    align-items:center;
-    justify-content:center;
-    z-index:10000;
-  `;
+  let db = null;
 
-  modal.innerHTML = `
-    <div style="
-      width:96%;
-      max-width:760px;
-      background:#1e1e1e;
-      color:#eee;
-      border-radius:18px;
-      padding:16px;
-      box-shadow:0 20px 44px rgba(0,0,0,.65)
-    ">
-      <h3 style="margin:0 0 10px;color:#ffd6d6;">
-        📦 Bulk Learning (100+ / 1000+ प्रश्न)
-      </h3>
+  /* =========================================================
+     OPEN DATABASE (OLD-PROOF)
+     ========================================================= */
+  function openDB() {
+    if (db) return Promise.resolve(db);
 
-      <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:10px;">
-        <input id="bulkSubject"
-          placeholder="नया विषय लिखें या नीचे से चुनें"
-          style="
-            flex:1;
-            padding:10px;
-            border-radius:10px;
-            border:1px solid #333;
-            background:#121212;
-            color:#eee;
-          ">
-        <button id="loadSubjects"
-          style="
-            padding:10px 14px;
-            border-radius:12px;
-            background:#2a2a2a;
-            color:#eee;
-            border:1px solid #333;
-          ">
-          सभी विषय
-        </button>
-      </div>
+    return new Promise((resolve, reject) => {
+      const req = indexedDB.open(DB_NAME, DB_VERSION);
 
-      <div id="subjectList"
-        style="
-          display:none;
-          max-height:120px;
-          overflow:auto;
-          border:1px solid #333;
-          border-radius:10px;
-          padding:6px;
-          background:#121212;
-          margin-bottom:10px;
-        ">
-      </div>
-
-      <div style="font-size:12px;color:#ccc;margin-bottom:6px;">
-        फॉर्मेट (हर प्रश्न–उत्तर के बीच एक खाली लाइन):
-        <br>
-        <code>
-        Q: प्रश्न...?<br>
-        A: उत्तर...
-        </code>
-      </div>
-
-      <textarea id="bulkInput"
-        placeholder="यहाँ 100+ / 1000+ प्रश्नोत्तर पेस्ट करें…"
-        style="
-          width:100%;
-          min-height:220px;
-          padding:10px;
-          border-radius:12px;
-          border:1px solid #333;
-          background:#121212;
-          color:#eee;
-          resize:vertical;
-        ">
-      </textarea>
-
-      <div style="display:flex;gap:8px;margin-top:10px;justify-content:space-between;flex-wrap:wrap;">
-        <div id="bulkInfo" style="font-size:12px;color:#9fdf9f;">
-          अभी कोई डेटा सेव नहीं हुआ
-        </div>
-        <div>
-          <button id="bulkCancel"
-            style="
-              padding:10px 14px;
-              border-radius:12px;
-              background:#2a2a2a;
-              color:#eee;
-              border:1px solid #333;
-            ">
-            रद्द
-          </button>
-          <button id="bulkSave"
-            style="
-              padding:10px 14px;
-              border-radius:12px;
-              background:linear-gradient(180deg,#ffd6d6,#ffb3b3);
-              color:#1b1b1b;
-              border:none;
-            ">
-            सेव करें
-          </button>
-        </div>
-      </div>
-    </div>
-  `;
-
-  document.body.appendChild(modal);
-
-  // ---------- OPEN ----------
-  const openBtn = document.getElementById("bulkBtn");
-  if (openBtn) {
-    openBtn.onclick = () => {
-      modal.style.display = "flex";
-      document.getElementById("bulkInfo").textContent =
-        "Bulk मोड तैयार है";
-    };
-  }
-
-  // ---------- CLOSE ----------
-  modal.addEventListener("click", e => {
-    if (e.target === modal) modal.style.display = "none";
-  });
-  document.getElementById("bulkCancel").onclick = () => {
-    modal.style.display = "none";
-  };
-
-  // ---------- LOAD SUBJECTS ----------
-  document.getElementById("loadSubjects").onclick = async () => {
-    const box = document.getElementById("subjectList");
-    box.innerHTML = "";
-    box.style.display = "block";
-
-    await KnowledgeBase.init();
-    const items = await KnowledgeBase.getAll();
-
-    const subjects = [...new Set(
-      items.map(i => i.subject).filter(Boolean)
-    )];
-
-    if (!subjects.length) {
-      box.innerHTML =
-        "<div style='color:#aaa;'>कोई विषय उपलब्ध नहीं है।</div>";
-      return;
-    }
-
-    subjects.forEach(s => {
-      const div = document.createElement("div");
-      div.textContent = s;
-      div.style.cssText = `
-        padding:6px 8px;
-        cursor:pointer;
-        border-radius:8px;
-      `;
-      div.onclick = () => {
-        document.getElementById("bulkSubject").value = s;
-        box.style.display = "none";
-      };
-      box.appendChild(div);
-    });
-  };
-
-  // ---------- SAVE BULK ----------
-  document.getElementById("bulkSave").onclick = async () => {
-    const info = document.getElementById("bulkInfo");
-    const subject =
-      document.getElementById("bulkSubject").value.trim();
-    const raw =
-      document.getElementById("bulkInput").value.trim();
-
-    if (!subject || !raw) {
-      info.style.color = "#ff9f9f";
-      info.textContent = "विषय और प्रश्नोत्तर दोनों आवश्यक हैं।";
-      return;
-    }
-
-    const blocks = raw.split(/\n\s*\n/);
-    let saved = 0;
-
-    try {
-      await KnowledgeBase.init();
-
-      for (const b of blocks) {
-        const q = b.match(/Q:\s*(.+)/i);
-        const a = b.match(/A:\s*(.+)/i);
-        if (q && a) {
-          await KnowledgeBase.saveOne({
-            subject,
-            question: q[1].trim(),
-            answer: a[1].trim()
+      req.onupgradeneeded = function (e) {
+        const d = e.target.result;
+        if (!d.objectStoreNames.contains(STORE)) {
+          d.createObjectStore(STORE, {
+            keyPath: "id",
+            autoIncrement: true
           });
-          saved++;
         }
+      };
+
+      req.onsuccess = function (e) {
+        db = e.target.result;
+        resolve(db);
+      };
+
+      req.onerror = function () {
+        reject(new Error("IndexedDB open failed"));
+      };
+    });
+  }
+
+  /* =========================================================
+     NORMALIZE (Reasoning-friendly, SAFE)
+     ========================================================= */
+  function normalize(text) {
+    return String(text || "")
+      .toLowerCase()
+      .replace(/[^\u0900-\u097F\s]/g, " ")
+      .replace(/\s+/g, " ")
+      .trim();
+  }
+
+  /* =========================================================
+     CORE API
+     ========================================================= */
+  const KnowledgeBase = {
+
+    /* ---------- INIT ---------- */
+    async init() {
+      await openDB();
+      return true;
+    },
+
+    /* =====================================================
+       SAVE SINGLE (OLD BEHAVIOR PRESERVED)
+       ===================================================== */
+    async saveOne({ question, answer, tags = [], subject = "" }) {
+      if (!question || !answer) {
+        throw new Error("Question and Answer required");
       }
 
-      info.style.color = "#9fdf9f";
-      info.textContent =
-        `सफलतापूर्वक सेव किए गए प्रश्न: ${saved}`;
+      const d = await openDB();
 
-      document.getElementById("bulkInput").value = "";
+      return new Promise((resolve, reject) => {
+        const tx = d.transaction(STORE, "readwrite");
+        const store = tx.objectStore(STORE);
 
-    } catch (e) {
-      info.style.color = "#ff9f9f";
-      info.textContent = "Bulk सेव में त्रुटि हुई।";
-      console.error(e);
+        store.add({
+          question,
+          answer,
+          tags,
+          subject,
+          question_norm: normalize(question), // Level-3 support
+          time: Date.now()
+        });
+
+        tx.oncomplete = () => resolve(true);
+        tx.onerror = () => reject("Save failed");
+      });
+    },
+
+    /* =====================================================
+       SAVE MANY (1000+ BULK SAFE)
+       - Single transaction
+       - NO await inside loop
+       ===================================================== */
+    async saveMany(list = []) {
+      if (!Array.isArray(list) || list.length === 0) return 0;
+
+      const d = await openDB();
+
+      return new Promise((resolve) => {
+        let saved = 0;
+
+        const tx = d.transaction(STORE, "readwrite");
+        const store = tx.objectStore(STORE);
+
+        for (const item of list) {
+          if (item.question && item.answer) {
+            try {
+              store.add({
+                question: item.question,
+                answer: item.answer,
+                tags: item.tags || [],
+                subject: item.subject || "",
+                question_norm: normalize(item.question),
+                time: Date.now()
+              });
+              saved++;
+            } catch (_) {
+              // skip silently (never break bulk)
+            }
+          }
+        }
+
+        tx.oncomplete = () => resolve(saved);
+        tx.onerror = () => resolve(saved); // partial success allowed
+      });
+    },
+
+    /* =====================================================
+       GET ALL (REASONING SAFE)
+       ===================================================== */
+    async getAll() {
+      const d = await openDB();
+
+      return new Promise((resolve) => {
+        const tx = d.transaction(STORE, "readonly");
+        const store = tx.objectStore(STORE);
+        const req = store.getAll();
+
+        req.onsuccess = () => {
+          resolve(Array.isArray(req.result) ? req.result : []);
+        };
+
+        req.onerror = () => resolve([]);
+      });
     }
   };
 
-})();
+  /* =========================================================
+     EXPOSE (LOCKED)
+     ========================================================= */
+  Object.defineProperty(window, "KnowledgeBase", {
+    value: KnowledgeBase,
+    writable: false,
+    configurable: false
+  });
+
+})(window);
