@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>🌸 Anjali App — System Diagnostic Panel</title>
+<title>🌸 Anjali App — REAL System Diagnostic</title>
 
 <style>
 body{
@@ -32,72 +32,22 @@ h1{
   margin-bottom:16px;
   box-shadow:0 8px 18px rgba(0,0,0,0.1);
 }
-.file-row{
+.row{
   display:flex;
   justify-content:space-between;
   align-items:center;
 }
-.file-name{font-weight:600;color:#333;}
-.percent{font-weight:bold;color:#8b0037;}
-.progress{
-  width:100%;
-  height:10px;
-  background:#eee;
-  border-radius:10px;
-  overflow:hidden;
-  margin:8px 0;
+.module{
+  font-weight:600;
+  color:#333;
 }
-.bar{
-  height:100%;
-  background:linear-gradient(90deg,#ff6a88,#ff99ac);
-}
-.actions{
-  display:flex;
-  justify-content:space-between;
-  align-items:center;
-}
-.status{font-size:13px;color:#555;}
-button{
-  background:linear-gradient(135deg,#ff6a88,#ff2f68);
-  border:none;
-  color:#fff;
-  padding:5px 14px;
-  border-radius:20px;
-  font-size:12px;
-  cursor:pointer;
-}
-button.error{
-  background:linear-gradient(135deg,#b00020,#ff1744);
-}
-button:hover{opacity:.9}
-
-/* Modal */
-.modal{
-  display:none;
-  position:fixed;
-  inset:0;
-  background:rgba(0,0,0,.6);
-  z-index:999;
-}
-.modal-content{
-  background:#fff;
-  max-width:600px;
-  margin:8% auto;
-  padding:20px;
-  border-radius:14px;
-}
-.modal h3{margin-top:0;color:#8b0037;}
-.close{
-  float:right;
-  cursor:pointer;
-  font-size:18px;
-}
-pre{
-  background:#f7f7f7;
-  padding:12px;
-  border-radius:10px;
+.status-ok{color:#2e7d32;font-weight:bold;}
+.status-error{color:#c62828;font-weight:bold;}
+.status-missing{color:#ef6c00;font-weight:bold;}
+.proof{
   font-size:13px;
-  white-space:pre-wrap;
+  color:#555;
+  margin-top:4px;
 }
 .footer{
   text-align:center;
@@ -105,35 +55,85 @@ pre{
   font-size:13px;
   color:#777;
 }
+pre{
+  background:#f7f7f7;
+  padding:10px;
+  border-radius:10px;
+  font-size:13px;
+}
 </style>
 </head>
 
 <body>
 
 <div class="container">
-<h1>🌸 Anjali App — System Diagnostic</h1>
-<div class="subtitle">अंजली की चेतना, स्मृति, संवाद और प्रेम-तंत्र की शुद्धता</div>
-
-<!-- TEMPLATE CARD (Repeated manually for accuracy) -->
-
-<!-- index.html -->
-<div class="card">
-  <div class="file-row">
-    <div class="file-name">index.html</div>
-    <div class="percent">85%</div>
+  <h1>🌸 Anjali App — REAL System Diagnostic</h1>
+  <div class="subtitle">
+    यह पैनल अनुमान नहीं, <b>runtime सत्य</b> दिखाता है
   </div>
-  <div class="progress"><div class="bar" style="width:85%"></div></div>
-  <div class="actions">
-    <div class="status">UI कार्यरत, Emotion hooks शेष</div>
-    <div>
-      <button>देखें</button>
-      <button class="error" onclick="showError('index')">Error</button>
-    </div>
+
+  <!-- 🔍 REAL DIAGNOSTIC OUTPUT -->
+  <div id="diagnosticResults"></div>
+
+  <div class="footer">
+    🌸 Anjali App • Truth-based Diagnostic System
   </div>
 </div>
 
-<!-- core -->
-<div class="card">
-  <div class="file-row"><div class="file-name">core/AnjaliCore.js</div><div class="percent">95%</div></div>
-  <div class="progress"><div class="bar" style="width:95%"></div></div>
+<!-- ================= REAL DIAGNOSTIC ENGINE ================= -->
+<script src="diagnostics/anjali_real_diagnostic.js"></script>
 
+<!-- ================= ENGINE → UI BRIDGE ================= -->
+<script src="diagnostics/anjali_diagnostic_bridge.js"></script>
+
+<!-- ================= UI RENDERER ================= -->
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+
+  const container = document.getElementById("diagnosticResults");
+  const data = window.AnjaliUIDiagnosticData;
+
+  if (!data || data.error) {
+    container.innerHTML = "<div class='card'>❌ Diagnostic data उपलब्ध नहीं है</div>";
+    return;
+  }
+
+  let html = `
+    <div class="card">
+      <b>Generated At:</b> ${data.generatedAt}
+    </div>
+  `;
+
+  data.modules.forEach(m => {
+    let statusClass = "status-missing";
+    if (m.status === "OK") statusClass = "status-ok";
+    if (m.status === "ERROR") statusClass = "status-error";
+
+    html += `
+      <div class="card">
+        <div class="row">
+          <div class="module">${m.module}</div>
+          <div class="${statusClass}">${m.status}</div>
+        </div>
+        <div class="proof">Proof: ${m.proof}</div>
+      </div>
+    `;
+  });
+
+  if (data.runtimeErrors && data.runtimeErrors.length) {
+    html += `
+      <div class="card">
+        <h3>🚨 Runtime Errors</h3>
+        ${data.runtimeErrors.map(e =>
+          `<pre>${e.message}\n${e.source || ""}</pre>`
+        ).join("")}
+      </div>
+    `;
+  }
+
+  container.innerHTML = html;
+});
+</script>
+
+</body>
+</html>
