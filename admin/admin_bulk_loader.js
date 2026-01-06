@@ -72,9 +72,9 @@
     },
 
     /* =====================================================
-       SAVE SINGLE (OLD BEHAVIOR PRESERVED)
+       SAVE SINGLE (CLEAN & STABLE)
        ===================================================== */
-    async saveOne({ question, answer, tags = [], subject = "" }) {
+    async saveOne({ question, answer, subject = "" }) {
       if (!question || !answer) {
         throw new Error("Question and Answer required");
       }
@@ -88,9 +88,8 @@
         store.add({
           question,
           answer,
-          tags,
           subject,
-          question_norm: normalize(question), // Level-3 support
+          question_norm: normalize(question),
           time: Date.now()
         });
 
@@ -102,7 +101,7 @@
     /* =====================================================
        SAVE MANY (1000+ BULK SAFE)
        - Single transaction
-       - NO await inside loop
+       - No await inside loop
        ===================================================== */
     async saveMany(list = []) {
       if (!Array.isArray(list) || list.length === 0) return 0;
@@ -121,20 +120,19 @@
               store.add({
                 question: item.question,
                 answer: item.answer,
-                tags: item.tags || [],
                 subject: item.subject || "",
                 question_norm: normalize(item.question),
                 time: Date.now()
               });
               saved++;
             } catch (_) {
-              // skip silently (never break bulk)
+              // skip silently (bulk must never break)
             }
           }
         }
 
         tx.oncomplete = () => resolve(saved);
-        tx.onerror = () => resolve(saved); // partial success allowed
+        tx.onerror = () => resolve(saved);
       });
     },
 
