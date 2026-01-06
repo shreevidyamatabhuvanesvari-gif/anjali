@@ -186,6 +186,54 @@ document.getElementById("startBtn").onclick = startConversation;
 document.getElementById("adminBtn").onclick = function () {
   window.location.href = "admin.html";
 };
+
+  <!-- ====== FOOTER : System Monitor Access ====== -->
+<div class="footer" style="text-align:center; margin-top:30px;">
+  🌸 Anjali App • Emotional System Monitor
+  <br><br>
+
+  <!-- 🌸 System Status Button -->
+  <button
+    onclick="openSystemStatus()"
+    style="
+      background:#ffe4ec;
+      border:none;
+      padding:6px 14px;
+      border-radius:18px;
+      color:#8b0037;
+      font-size:13px;
+      cursor:pointer;
+      margin-right:8px;
+    ">
+    🌸 System Status
+  </button>
+
+  <!-- 🔍 Diagnostic Button -->
+  <button
+    onclick="openDiagnosticPanel()"
+    style="
+      background:linear-gradient(135deg,#ff6a88,#ff2f68);
+      border:none;
+      padding:6px 14px;
+      border-radius:18px;
+      color:#fff;
+      font-size:13px;
+      cursor:pointer;
+    ">
+    🔍 Detailed Diagnostic Panel
+  </button>
+</div>
+
+<script>
+/* index.html → anjali_system_status.html */
+function openSystemStatus() {
+  window.location.href = "anjali_system_status.html";
+}
+
+/* index.html → anjali_system_diagnostic.html */
+function openDiagnosticPanel() {
+  window.location.href = "anjali_system_diagnostic.html";
+}
 </script>
   
 </body>
