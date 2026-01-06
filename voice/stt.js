@@ -28,6 +28,7 @@
   let listening = false;
   let idleTimer = null;
    let lastUserQuestion = "";
+   let lastAnjaliReply = "";
 
   const IDLE_LIMIT = 120000; // 2 minutes
 
