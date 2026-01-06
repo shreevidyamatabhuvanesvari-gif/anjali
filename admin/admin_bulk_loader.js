@@ -1,12 +1,12 @@
-<script>
 /* =========================================================
    admin/admin_bulk_loader.js
-   Role: Bulk Q/A Importer (100–1000+ SAFE)
-   Depends on: KnowledgeBase.js (already loaded)
+   Role: BULK Q/A IMPORTER (LEVEL-3 SAFE)
    GUARANTEE:
-   - Bulk save works
-   - Single save unaffected
+   - 1000+ Q/A mobile-safe
+   - Single transaction only
+   - KnowledgeBase.js untouched
    - No schema change
+   - No async loop abuse
    ========================================================= */
 
 (function () {
@@ -17,121 +17,110 @@
     return;
   }
 
-  /* ================= UI ================= */
+  /* =========================================================
+     UI REFERENCES
+     ========================================================= */
+  const bulkBtn     = document.getElementById("bulkBtn");
+  const bulkInput   = document.getElementById("bulkInput");
+  const bulkSubject = document.getElementById("bulkSubject");
+  const bulkInfo    = document.getElementById("bulkInfo");
+  const bulkSave    = document.getElementById("bulkSave");
+  const bulkCancel  = document.getElementById("bulkCancel");
+  const modal       = document.getElementById("bulkLearningModal");
 
-  const modal = document.createElement("div");
-  modal.style.cssText = `
-    position:fixed; inset:0;
-    background:rgba(0,0,0,.6);
-    display:none;
-    align-items:center;
-    justify-content:center;
-    z-index:9999;
-  `;
-
-  modal.innerHTML = `
-    <div style="width:95%;max-width:760px;background:#1e1e1e;
-                color:#eee;border-radius:18px;padding:16px;">
-      <h3>📦 Bulk Question Loader (1000+)</h3>
-
-      <div style="font-size:13px;margin-bottom:6px;">
-        Format:
-        <pre style="background:#111;padding:6px;border-radius:8px;">
-Q: प्रश्न?
-A: उत्तर
-
-Q: प्रश्न?
-A: उत्तर
-        </pre>
-      </div>
-
-      <textarea id="bulkInput"
-        placeholder="यहाँ प्रश्नोत्तर पेस्ट करें…"
-        style="width:100%;min-height:220px;
-               padding:10px;border-radius:12px;
-               background:#111;color:#eee;">
-      </textarea>
-
-      <div style="display:flex;justify-content:space-between;margin-top:10px;">
-        <div id="bulkInfo" style="font-size:12px;color:#9fdf9f;">
-          तैयार
-        </div>
-        <div>
-          <button id="bulkClose">बंद</button>
-          <button id="bulkSave">सेव करें</button>
-        </div>
-      </div>
-    </div>
-  `;
-
-  document.body.appendChild(modal);
-
-  /* ================= OPEN ================= */
-
-  const openBtn = document.getElementById("bulkBtn");
-  if (openBtn) {
-    openBtn.onclick = () => {
-      modal.style.display = "flex";
-      document.getElementById("bulkInfo").textContent =
-        "Bulk मोड सक्रिय";
-    };
+  if (!bulkBtn || !bulkInput || !bulkSave) {
+    console.warn("⚠️ Bulk UI elements missing");
+    return;
   }
 
-  document.getElementById("bulkClose").onclick = () => {
+  /* =========================================================
+     OPEN / CLOSE MODAL
+     ========================================================= */
+  bulkBtn.onclick = () => {
+    modal.style.display = "flex";
+    bulkInfo.textContent = "Bulk मोड तैयार है";
+    bulkInfo.style.color = "#9fdf9f";
+  };
+
+  bulkCancel.onclick = () => {
     modal.style.display = "none";
   };
 
-  modal.onclick = e => {
+  modal.onclick = (e) => {
     if (e.target === modal) modal.style.display = "none";
   };
 
-  /* ================= SAVE LOGIC ================= */
-
-  document.getElementById("bulkSave").onclick = async () => {
-    const info = document.getElementById("bulkInfo");
-    const raw = document.getElementById("bulkInput").value.trim();
-
-    if (!raw) {
-      info.style.color = "#ff9f9f";
-      info.textContent = "❌ कोई डेटा नहीं मिला";
-      return;
-    }
-
-    const blocks = raw.split(/\n\s*\n/);
+  /* =========================================================
+     PARSER (Q/A BLOCK SAFE)
+     ========================================================= */
+  function parseBulkText(rawText, subject) {
+    const blocks = rawText.split(/\n\s*\n+/);
     const list = [];
 
     for (const block of blocks) {
-      const q = block.match(/^Q:\s*(.+)$/im);
-      const a = block.match(/^A:\s*(.+)$/im);
+      const qMatch = block.match(/Q:\s*(.+)/i);
+      const aMatch = block.match(/A:\s*(.+)/i);
 
-      if (q && a) {
-        list.push({
-          question: q[1].trim(),
-          answer: a[1].trim()
-        });
-      }
+      if (!qMatch || !aMatch) continue;
+
+      list.push({
+        question: qMatch[1].trim(),
+        answer:   aMatch[1].trim(),
+        subject:  subject
+      });
     }
 
-    if (!list.length) {
-      info.style.color = "#ff9f9f";
-      info.textContent = "❌ सही Q/A फॉर्मेट नहीं मिला";
+    return list;
+  }
+
+  /* =========================================================
+     SAVE BULK (1000+ SAFE)
+     ========================================================= */
+  bulkSave.onclick = async () => {
+    const raw     = bulkInput.value.trim();
+    const subject = bulkSubject.value.trim();
+
+    if (!raw || !subject) {
+      bulkInfo.style.color = "#ff9f9f";
+      bulkInfo.textContent = "❌ विषय और प्रश्नोत्तर आवश्यक हैं";
       return;
     }
 
+    let list;
+    try {
+      list = parseBulkText(raw, subject);
+    } catch (e) {
+      bulkInfo.style.color = "#ff9f9f";
+      bulkInfo.textContent = "❌ डेटा पार्स नहीं हो पाया";
+      return;
+    }
+
+    if (list.length === 0) {
+      bulkInfo.style.color = "#ff9f9f";
+      bulkInfo.textContent = "❌ वैध प्रश्नोत्तर नहीं मिले";
+      return;
+    }
+
+    bulkInfo.style.color = "#ccc";
+    bulkInfo.textContent = "⏳ सेव हो रहा है… कृपया प्रतीक्षा करें";
+
     try {
       await KnowledgeBase.init();
-      const saved = await KnowledgeBase.saveMany(list);
 
-      info.style.color = "#9fdf9f";
-      info.textContent = `✅ ${saved} प्रश्न सफलतापूर्वक सेव हुए`;
+      // 🔑 ROOT FIX — SINGLE TRANSACTION BULK SAVE
+      const savedCount = await KnowledgeBase.saveMany(list);
 
-      document.getElementById("bulkInput").value = "";
+      bulkInfo.style.color = "#9fdf9f";
+      bulkInfo.textContent =
+        `✅ सफलतापूर्वक सेव किए गए प्रश्न: ${savedCount}`;
+
+      bulkInput.value = "";
+
     } catch (e) {
-      info.style.color = "#ff9f9f";
-      info.textContent = "❌ Bulk सेव में त्रुटि";
+      bulkInfo.style.color = "#ff9f9f";
+      bulkInfo.textContent = "❌ Bulk सेव विफल";
       console.error(e);
     }
   };
 
 })();
-</script>
