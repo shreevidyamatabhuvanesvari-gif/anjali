@@ -41,13 +41,29 @@ h1{
   font-weight:600;
   color:#333;
 }
-.status-ok{color:#2e7d32;font-weight:bold;}
-.status-error{color:#c62828;font-weight:bold;}
-.status-missing{color:#ef6c00;font-weight:bold;}
+.status-ok{
+  color:#2e7d32;
+  font-weight:bold;
+}
+.status-error{
+  color:#c62828;
+  font-weight:bold;
+}
+.status-missing{
+  color:#ef6c00;
+  font-weight:bold;
+}
 .proof{
   font-size:13px;
   color:#555;
   margin-top:4px;
+}
+pre{
+  background:#f7f7f7;
+  padding:10px;
+  border-radius:10px;
+  font-size:13px;
+  white-space:pre-wrap;
 }
 .footer{
   text-align:center;
@@ -55,11 +71,11 @@ h1{
   font-size:13px;
   color:#777;
 }
-pre{
-  background:#f7f7f7;
-  padding:10px;
-  border-radius:10px;
+.notice{
+  text-align:center;
   font-size:13px;
+  color:#6b2c2c;
+  margin-bottom:20px;
 }
 </style>
 </head>
@@ -69,7 +85,12 @@ pre{
 <div class="container">
   <h1>🌸 Anjali App — REAL System Diagnostic</h1>
   <div class="subtitle">
-    यह पैनल अनुमान नहीं, <b>runtime सत्य</b> दिखाता है
+    यह पैनल अनुमान नहीं, <b>index.html से प्राप्त runtime सत्य</b> दिखाता है
+  </div>
+
+  <div class="notice">
+    ⚠️ यदि कोई मॉड्यूल “MISSING / ERROR” दिखे,  
+    तो पहले <b>index.html</b> खोलकर सिस्टम चलाएँ।
   </div>
 
   <!-- 🔍 REAL DIAGNOSTIC OUTPUT -->
@@ -80,31 +101,43 @@ pre{
   </div>
 </div>
 
-<!-- ================= REAL DIAGNOSTIC ENGINE ================= -->
-<script src="diagnostics/anjali_real_diagnostic.js"></script>
-
-<!-- ================= ENGINE → UI BRIDGE ================= -->
-<script src="diagnostics/anjali_diagnostic_bridge.js"></script>
-
-<!-- ================= UI RENDERER ================= -->
 <script>
+/* ===============================
+   REAL DIAGNOSTIC RENDERER
+   Reads data from localStorage
+   =============================== */
+
 document.addEventListener("DOMContentLoaded", function () {
 
   const container = document.getElementById("diagnosticResults");
-  const data = window.AnjaliUIDiagnosticData;
 
-  if (!data || data.error) {
-    container.innerHTML = "<div class='card'>❌ Diagnostic data उपलब्ध नहीं है</div>";
+  let raw;
+  try {
+    raw = JSON.parse(
+      localStorage.getItem("ANJALI_REAL_DIAGNOSTIC")
+    );
+  } catch(e) {
+    raw = null;
+  }
+
+  if (!raw) {
+    container.innerHTML = `
+      <div class="card">
+        ❌ Diagnostic data उपलब्ध नहीं है।<br><br>
+        कृपया पहले <b>index.html</b> खोलकर
+        अंजली को प्रारंभ करें, फिर यहाँ आएँ।
+      </div>
+    `;
     return;
   }
 
   let html = `
     <div class="card">
-      <b>Generated At:</b> ${data.generatedAt}
+      <b>Generated At:</b> ${raw.timestamp}
     </div>
   `;
 
-  data.modules.forEach(m => {
+  raw.results.forEach(m => {
     let statusClass = "status-missing";
     if (m.status === "OK") statusClass = "status-ok";
     if (m.status === "ERROR") statusClass = "status-error";
@@ -120,12 +153,12 @@ document.addEventListener("DOMContentLoaded", function () {
     `;
   });
 
-  if (data.runtimeErrors && data.runtimeErrors.length) {
+  if (raw.errors && raw.errors.length) {
     html += `
       <div class="card">
         <h3>🚨 Runtime Errors</h3>
-        ${data.runtimeErrors.map(e =>
-          `<pre>${e.message}\n${e.source || ""}</pre>`
+        ${raw.errors.map(e =>
+          `<pre>${e.message || e}</pre>`
         ).join("")}
       </div>
     `;
