@@ -58,23 +58,30 @@
     }
   }
 
-  /* ==================================================
-     🎧 RESULT (USER SPOKE)
-     ================================================== */
+ /* ==================================================
+     🎧 RESULT (USER SPOKE) — FIXED
+   ================================================== */
 recognition.onresult = async function (event) {
   active = false;
 
-  // 🔒 CORE FIX — TTS की अपनी आवाज़ को प्रश्न न माने
-  if (
-    window.TTS &&
-    typeof TTS.isSpeaking === "function" &&
-    TTS.isSpeaking()
-  ) {
-    TTS.stop();   // बोलना रोको, यूज़र की बात सुनो;
+  if (!event.results || !event.results[0]) return;
+
+  const transcript = event.results[0][0].transcript.trim();
+
+  // 🧠 HUMAN SILENCE GUARD
+  // breathing / mic-click / noise ignore
+  if (transcript.length < 4) {
+    resetIdleTimer();
+    return;
   }
-if (transcript.length < 4) return;
+
   console.log("👂 Heard:", transcript);
   resetIdleTimer();
+
+  // ✋ USER वास्तव में बोला → TTS को रोको
+  if (window.TTS && typeof TTS.stop === "function") {
+    TTS.stop();
+  }o
 
     /* ==================================================
        🛑 BARGE-IN DETECTION
