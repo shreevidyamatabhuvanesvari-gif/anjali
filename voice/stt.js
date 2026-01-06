@@ -1,13 +1,11 @@
 /* =========================================================
    voice/stt.js
-   Role: ROCK-SOLID Speech-To-Text Driver (FINAL)
-   GUARANTEE:
-   - STT कभी स्थायी रूप से बंद नहीं होगा
-   - TTS अपनी आवाज़ को प्रश्न नहीं मानेगा
-   - User बीच में बोले → TTS तुरंत रुके
-   - Answer के बाद STT फिर से शुरू होगा
-   - 2-minute idle logic स्थिर रहेगा
-   - ReasoningEngine / AnswerEngine untouched
+   Role: HUMAN-LIKE Speech-To-Text Driver (LEVEL-3)
+   BEHAVIOR:
+   (A) बिना refresh लगातार बातचीत
+   (B) TTS के समय अर्ध-सुनना (noise ignore)
+   (C) User बोले → TTS तुरंत रुके
+   (D) अनंत संवाद चक्र (user बोले तब तक)
    ========================================================= */
 
 (function (window) {
@@ -24,7 +22,7 @@
   const recognition = new SpeechRecognition();
   recognition.lang = "hi-IN";
   recognition.interimResults = false;
-  recognition.continuous = false; // browser constraint
+  recognition.continuous = false;
 
   let active = false;
   let listening = false;
@@ -33,7 +31,7 @@
   const IDLE_LIMIT = 120000; // 2 minutes
 
   /* ==================================================
-     ⏱️ IDLE TIMER
+     ⏱️ IDLE TIMER (जीवित रहने हेतु)
      ================================================== */
   function resetIdleTimer() {
     clearTimeout(idleTimer);
@@ -55,46 +53,56 @@
       active = true;
       resetIdleTimer();
       console.log("🎤 Listening...");
-    } catch (e) {
-      console.error("STT start error:", e);
-    }
+    } catch (_) {}
   }
 
   /* ==================================================
-     🎧 RESULT (USER SPOKE) — FINAL
+     🎧 RESULT (USER SPOKE)
      ================================================== */
   recognition.onresult = async function (event) {
     active = false;
 
-    if (!event.results || !event.results[0] || !event.results[0][0]) return;
+    if (!event.results || !event.results[0] || !event.results[0][0]) {
+      if (listening) start();
+      return;
+    }
 
-    const raw = event.results[0][0].transcript;
-    if (!raw) return;
+    const transcript = event.results[0][0].transcript.trim();
 
-    const transcript = raw.trim();
-
-    // 🧠 HUMAN SILENCE GUARD
-    // सांस, mic-click, शोर आदि को प्रश्न न माने
-    if (transcript.length < 3) {
+    /* -------------------------------
+       (B) SEMI-LISTENING FILTER
+       शोर / साँस / mic-click ignore
+       ------------------------------- */
+    if (transcript.length < 4) {
       resetIdleTimer();
-      resumeListening();
+      if (listening) start();
       return;
     }
 
     console.log("👂 Heard:", transcript);
     resetIdleTimer();
 
-    // ✋ यूज़र ने सच में बोला → TTS तुरंत रोको
-    if (
-      window.TTS &&
-      typeof TTS.isSpeaking === "function" &&
-      TTS.isSpeaking() &&
-      typeof TTS.stop === "function"
-    ) {
+    /* -------------------------------
+       (C) USER BARGE-IN
+       User बोला → TTS तुरंत रुके
+       ------------------------------- */
+    if (window.TTS && typeof TTS.stop === "function") {
       TTS.stop();
     }
 
-    /* ---------- ANSWER ---------- */
+    /* -------------------------------
+       USER STOP COMMAND
+       ------------------------------- */
+    const stopWords = ["अब बात बंद", "बाद में बात", "चुप हो जाओ"];
+    if (stopWords.some(w => transcript.includes(w))) {
+      listening = false;
+      try { recognition.stop(); } catch (_) {}
+      return;
+    }
+
+    /* -------------------------------
+       ANSWER (Reasoning untouched)
+       ------------------------------- */
     let reply = "इस प्रश्न का उत्तर मेरे ज्ञान में नहीं है।";
 
     try {
@@ -103,36 +111,40 @@
       } else if (window.AnswerEngine) {
         reply = await AnswerEngine.answer(transcript);
       }
-    } catch (e) {
-      console.error("Reasoning error:", e);
+    } catch (_) {
       reply = "उत्तर देने में मुझे कठिनाई हुई।";
     }
 
-    /* ---------- SPEAK ---------- */
+    /* -------------------------------
+       SPEAK FULL ANSWER
+       ------------------------------- */
     if (window.TTS && reply) {
       TTS.speak(reply);
     }
 
-    /* ---------- RESUME LISTENING ---------- */
-    resumeListening();
+    /* -------------------------------
+       PASSIVE MEMORY (non-blocking)
+       ------------------------------- */
+    setTimeout(() => {
+      try {
+        if (window.ContextMemory) {
+          ContextMemory.addUserUtterance(transcript);
+          ContextMemory.addAnjaliReply(reply);
+        }
+      } catch (_) {}
+    }, 0);
+
+    /* -------------------------------
+       (A + D) CONTINUOUS LOOP
+       उत्तर → चुप → फिर सुनना
+       ------------------------------- */
+    waitForSpeechEnd(() => {
+      if (listening) start();
+    });
   };
 
   /* ==================================================
-     🔁 RESUME LISTENING SAFELY
-     ================================================== */
-  function resumeListening() {
-    if (!listening) return;
-
-    setTimeout(() => {
-      try {
-        recognition.start();
-        active = true;
-      } catch (_) {}
-    }, 300);
-  }
-
-  /* ==================================================
-     🔚 END / ERROR HANDLING
+     🔚 END / ERROR (SELF-HEALING)
      ================================================== */
   recognition.onend = function () {
     active = false;
@@ -149,7 +161,19 @@
   };
 
   /* ==================================================
-     🌐 EXPOSE API
+     🧰 UTILITY
+     ================================================== */
+  function waitForSpeechEnd(cb) {
+    const i = setInterval(() => {
+      if (!(window.TTS && TTS.isSpeaking())) {
+        clearInterval(i);
+        cb();
+      }
+    }, 120);
+  }
+
+  /* ==================================================
+     🌐 EXPOSE
      ================================================== */
   window.STT = {
     start() {
