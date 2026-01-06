@@ -77,7 +77,7 @@ recognition.onresult = async function (event) {
 
   const transcript = event.results[0][0].transcript.trim();
   if (!transcript) return;
-
+if (transcript.length < 4) return;
   console.log("👂 Heard:", transcript);
   resetIdleTimer();
 
