@@ -1,90 +1,83 @@
 /* =========================================================
    core/ReasoningEngine.js
-   Role: Human-like Offline Reasoning Engine
+   Role: Deterministic Question → Answer Resolver
    GUARANTEE:
-   - Uses saved KnowledgeBase correctly
-   - No impact on STT / TTS
-   - Keyword-based flexible matching
+   - Saved knowledge से ही उत्तर देगा
+   - return path कभी नहीं टूटेगा
+   - STT / TTS / UI untouched
    ========================================================= */
 
 (function (window) {
   "use strict";
 
+  /* ---------- SAFETY CHECK ---------- */
   if (!window.KnowledgeBase) {
-    console.error("❌ ReasoningEngine: KnowledgeBase missing");
-    return;
+    console.error("ReasoningEngine: KnowledgeBase missing");
   }
 
-  /* ---------- TEXT UTILS ---------- */
+  /* ---------- NORMALIZER ---------- */
   function normalize(text) {
     return String(text || "")
       .toLowerCase()
-      .replace(/[^\u0900-\u097F\s]/g, "") // Hindi only
+      .replace(/[^\u0900-\u097F\s]/g, " ")
       .replace(/\s+/g, " ")
       .trim();
   }
 
-  function words(text) {
-    return normalize(text).split(" ").filter(w => w.length > 1);
-  }
+  /* ---------- CORE ENGINE ---------- */
+  const ReasoningEngine = {
 
-  /* ---------- MAIN REASONING ---------- */
-  async function reason(questionText) {
-    if (!questionText) {
-      return "मैं आपकी बात समझ नहीं पाई।";
-    }
-
-    let all;
-    try {
-      await KnowledgeBase.init();
-      all = await KnowledgeBase.getAll();
-    } catch (e) {
-      return "मेरे ज्ञान तक पहुँचने में समस्या आ रही है।";
-    }
-
-    if (!Array.isArray(all) || all.length === 0) {
-      return "मेरे पास अभी कोई सुरक्षित ज्ञान नहीं है।";
-    }
-
-    const qWords = words(questionText);
-
-    let bestMatch = null;
-    let bestScore = 0;
-
-    for (const item of all) {
-      if (!item.question || !item.answer) continue;
-
-      const kWords = words(item.question);
-      if (kWords.length === 0) continue;
-
-      let matchCount = 0;
-      qWords.forEach(w => {
-        if (kWords.includes(w)) matchCount++;
-      });
-
-      const score = matchCount / kWords.length;
-
-      if (score > bestScore) {
-        bestScore = score;
-        bestMatch = item;
+    async reason(userQuestion) {
+      // ❌ invalid input guard
+      if (!userQuestion || typeof userQuestion !== "string") {
+        return "मैं प्रश्न समझ नहीं पाई।";
       }
+
+      // ❌ KnowledgeBase unavailable
+      if (!window.KnowledgeBase || !KnowledgeBase.getAll) {
+        return "मेरे ज्ञान स्रोत उपलब्ध नहीं हैं।";
+      }
+
+      let knowledge = [];
+
+      try {
+        knowledge = await KnowledgeBase.getAll();
+      } catch (e) {
+        return "ज्ञान पढ़ने में समस्या आई।";
+      }
+
+      if (!Array.isArray(knowledge) || knowledge.length === 0) {
+        return "मेरे पास अभी कोई संग्रहीत ज्ञान नहीं है।";
+      }
+
+      const qNorm = normalize(userQuestion);
+
+      // 🔍 EXACT + PARTIAL MATCH
+      for (let i = 0; i < knowledge.length; i++) {
+        const item = knowledge[i];
+        if (!item || !item.question || !item.answer) continue;
+
+        const storedNorm = normalize(item.question);
+
+        if (
+          storedNorm === qNorm ||
+          storedNorm.includes(qNorm) ||
+          qNorm.includes(storedNorm)
+        ) {
+          return String(item.answer); // ✅ FINAL RETURN
+        }
+      }
+
+      // ❌ No match found
+      return "इस प्रश्न का उत्तर मेरे ज्ञान में उपलब्ध नहीं है।";
     }
+  };
 
-    /* ---------- DECISION ---------- */
-    if (bestMatch && bestScore >= 0.6) {
-      return bestMatch.answer;
-    }
-
-    return "इस प्रश्न का उत्तर मेरे ज्ञान में अभी उपलब्ध नहीं है।";
-  }
-
-  /* ---------- EXPOSE ---------- */
+  /* ---------- EXPOSE (SAFE) ---------- */
   Object.defineProperty(window, "ReasoningEngine", {
-    value: { reason },
+    value: ReasoningEngine,
     writable: false,
     configurable: false
   });
-
-  console.log("🧠 ReasoningEngine ready (human-like)");
 
 })(window);
