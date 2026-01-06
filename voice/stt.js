@@ -58,28 +58,38 @@
     }
   }
 
- /* ==================================================
-     🎧 RESULT (USER SPOKE) — FIXED
+/* ==================================================
+   🎧 RESULT (USER SPOKE) — 100% PURE
    ================================================== */
 recognition.onresult = async function (event) {
   active = false;
 
-  if (!event.results || !event.results[0]) return;
+  if (!event.results || !event.results[0] || !event.results[0][0]) return;
 
-  const transcript = event.results[0][0].transcript.trim();
+  const raw = event.results[0][0].transcript;
+  if (!raw) return;
 
-  // 🧠 HUMAN SILENCE GUARD
-  // breathing / mic-click / noise ignore
-  if (transcript.length < 4) {
+  const transcript = raw.trim();
+
+  // 🧠 HUMAN SILENCE GUARD (noise / mic-click)
+  // केवल अर्थहीन बहुत छोटे इनपुट रोको
+  if (transcript.length < 3) {
     resetIdleTimer();
     return;
   }
 
   console.log("👂 Heard:", transcript);
+
+  // ⏱️ Idle timer — केवल एक बार
   resetIdleTimer();
 
-  // ✋ USER वास्तव में बोला → TTS को रोको
-  if (window.TTS && typeof TTS.stop === "function") {
+  // ✋ USER ने सच में बोला → तभी TTS रोको
+  if (
+    window.TTS &&
+    typeof TTS.isSpeaking === "function" &&
+    TTS.isSpeaking() &&
+    typeof TTS.stop === "function"
+  ) {
     TTS.stop();
   }
 
