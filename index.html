@@ -41,21 +41,9 @@
       border:3px solid #f0c4c4;
       box-shadow:0 6px 14px rgba(0,0,0,.15);
     }
-    .avatar img{
-      width:100%;
-      height:100%;
-      object-fit:cover;
-    }
-    .title{
-      font-size:26px;
-      color:var(--accent);
-      margin:6px 0 4px;
-    }
-    .subtitle{
-      font-size:14px;
-      color:#555;
-      margin-bottom:14px;
-    }
+    .avatar img{width:100%;height:100%;object-fit:cover;}
+    .title{font-size:26px;color:var(--accent);margin:6px 0 4px;}
+    .subtitle{font-size:14px;color:#555;margin-bottom:14px;}
     .status{
       background:#fff7f4;
       border:1px solid #f3d4c7;
@@ -65,30 +53,22 @@
       color:#6b2c2c;
       margin:10px 0 14px;
     }
-    .actions{
-      display:flex;
-      gap:10px;
-      justify-content:center;
-      flex-wrap:wrap;
-    }
+    .actions{display:flex;gap:10px;justify-content:center;flex-wrap:wrap;}
     .btn{
-      border:none;
-      border-radius:16px;
-      padding:12px 16px;
-      font-size:14px;
-      cursor:pointer;
+      border:none;border-radius:16px;
+      padding:12px 16px;font-size:14px;cursor:pointer;
       background:linear-gradient(180deg,#c96a6a,#a13f3f);
       color:#fff;
     }
     .btn.secondary{
-      background:#fff;
-      color:var(--soft);
+      background:#fff;color:var(--soft);
       border:1px dashed #e6b2b2;
     }
     .footer{
       margin-top:14px;
       font-size:11px;
       color:#777;
+      text-align:center;
     }
   </style>
 </head>
@@ -111,130 +91,68 @@
   </div>
 
   <div class="footer">Foundation • Stage-1</div>
+
+  <!-- 🌸 System Monitor Buttons -->
+  <div class="footer" style="margin-top:10px;">
+    <button onclick="openSystemStatus()" class="btn secondary">
+      🌸 System Status
+    </button>
+    <br><br>
+    <button onclick="openDiagnosticPanel()" class="btn">
+      🔍 Diagnostic
+    </button>
+  </div>
+
 </main>
 
-
-<!-- ===== CORE BASE (सबसे पहले) ===== -->
+<!-- ===== CORE BASE ===== -->
 <script src="core/AnjaliCore.js"></script>
 
-<!-- ===== MEMORY / DATA LAYERS ===== -->
+<!-- ===== MEMORY / DATA ===== -->
 <script src="learning/KnowledgeBase.js"></script>
 <script src="learning/ExperienceMemory.js"></script>
 <script src="core/ContextMemory.js"></script>
 
-<!-- ===== READING / THINKING ===== -->
+<!-- ===== THINKING ===== -->
 <script src="core/ReadingMode.js"></script>
 <script src="core/ReasoningEngine.js"></script>
 <script src="core/AnswerEngine.js"></script>
 
-<!-- ===== BRIDGE / CONTROL ===== -->
+<!-- ===== CONTROL ===== -->
 <script src="core/LearningBridge.js"></script>
 <script src="core/AdminControl.js"></script>
 
-<!-- ===== VOICE SYSTEM (हमेशा अंत में) ===== -->
+<!-- ===== VOICE (LAST) ===== -->
 <script src="voice/tts.js"></script>
 <script src="voice/stt.js"></script>
 
-  
 <script>
-/* =========================================
-   STABLE CONVERSATION CONTROLLER
-   (NO LOOPS • NO AUTO SPEAK • SAFE)
-   ========================================= */
+let audioUnlocked=false, conversationActive=false;
 
-let audioUnlocked = false;
-let conversationActive = false;
-
-/* ---------- START BUTTON ---------- */
-function startConversation() {
-  const status = document.getElementById("appStatus");
-
-  // 🔓 Audio unlock (mobile safe)
-  if (window.TTS && !audioUnlocked) {
-    TTS.init();
-    audioUnlocked = true;
-  }
-
-  conversationActive = true;
-  status.textContent = "मैं सुन रही हूँ…";
-
-  // 🎤 सीधे सुनना शुरू
-  if (window.STT) {
-    STT.start();
-  }
+function startConversation(){
+  const status=document.getElementById("appStatus");
+  if(window.TTS && !audioUnlocked){ TTS.init(); audioUnlocked=true; }
+  conversationActive=true;
+  status.textContent="मैं सुन रही हूँ…";
+  if(window.STT){ STT.start(); }
 }
 
-/* ---------- AFTER ANSWER ---------- */
-/* यह function voice/stt.js से call होता है */
-window.onAnjaliAnswered = function () {
-  if (!conversationActive) return;
-
-  const status = document.getElementById("appStatus");
-  status.textContent = "मैं सुन रही हूँ…";
-
-  // ⏱️ थोड़ा gap ताकि overlap न हो
-  setTimeout(() => {
-    if (window.STT && conversationActive) {
-      STT.start();
-    }
-  }, 500);
+window.onAnjaliAnswered=function(){
+  if(!conversationActive) return;
+  document.getElementById("appStatus").textContent="मैं सुन रही हूँ…";
+  setTimeout(()=>{ if(window.STT) STT.start(); },500);
 };
 
-/* ---------- BUTTON BINDINGS (ONLY ONCE) ---------- */
-document.getElementById("startBtn").onclick = startConversation;
+document.getElementById("startBtn").onclick=startConversation;
+document.getElementById("adminBtn").onclick=()=>location.href="admin.html";
 
-document.getElementById("adminBtn").onclick = function () {
-  window.location.href = "admin.html";
-};
-
-  <!-- ====== FOOTER : System Monitor Access ====== -->
-<div class="footer" style="text-align:center; margin-top:30px;">
-  🌸 Anjali App • Emotional System Monitor
-  <br><br>
-
-  <!-- 🌸 System Status Button -->
-  <button
-    onclick="openSystemStatus()"
-    style="
-      background:#ffe4ec;
-      border:none;
-      padding:6px 14px;
-      border-radius:18px;
-      color:#8b0037;
-      font-size:13px;
-      cursor:pointer;
-      margin-right:8px;
-    ">
-    🌸 System Status
-  </button>
-
-  <!-- 🔍 Diagnostic Button -->
-  <button
-    onclick="openDiagnosticPanel()"
-    style="
-      background:linear-gradient(135deg,#ff6a88,#ff2f68);
-      border:none;
-      padding:6px 14px;
-      border-radius:18px;
-      color:#fff;
-      font-size:13px;
-      cursor:pointer;
-    ">
-    🔍 Detailed Diagnostic Panel
-  </button>
-</div>
-
-<script>
-/* index.html → anjali_system_status.html */
-function openSystemStatus() {
-  window.location.href = "anjali_system_status.html";
+function openSystemStatus(){
+  location.href="anjali_system_status.html";
 }
-
-/* index.html → anjali_system_diagnostic.html */
-function openDiagnosticPanel() {
-  window.location.href = "anjali_system_diagnostic.html";
+function openDiagnosticPanel(){
+  location.href="anjali_system_diagnostic.html";
 }
 </script>
-  
+
 </body>
-  </html>
+</html>
