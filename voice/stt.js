@@ -81,45 +81,27 @@ recognition.onresult = async function (event) {
   // ✋ USER वास्तव में बोला → TTS को रोको
   if (window.TTS && typeof TTS.stop === "function") {
     TTS.stop();
-  }o
+  }
 
-    /* ==================================================
-       🛑 BARGE-IN DETECTION
-       ================================================== */
-    if (window.TTS && TTS.isSpeaking()) {
-      // यूज़र ने बीच में बोला → TTS बंद
-      TTS.stop();
-      console.log("✋ User interrupted TTS");
+  /* ---------- ANSWER ---------- */
+  let reply = "इस प्रश्न का उत्तर मेरे ज्ञान में नहीं है।";
+
+  try {
+    if (window.ReasoningEngine) {
+      reply = await ReasoningEngine.reason(transcript);
+    } else if (window.AnswerEngine) {
+      reply = await AnswerEngine.answer(transcript);
     }
+  } catch (e) {
+    console.error("Reasoning error:", e);
+    reply = "उत्तर देने में मुझे कठिनाई हुई।";
+  }
 
-    /* ---------- READING MODE ---------- */
-    if (window.ReadingMode && ReadingMode.isActive()) {
-      ReadingMode.addText(transcript);
-      return;
-    }
-
-    /* ---------- ANSWER ---------- */
-    let reply = "इस प्रश्न का उत्तर मेरे ज्ञान में नहीं है।";
-
-    try {
-      if (window.ReasoningEngine) {
-        reply = await ReasoningEngine.reason(transcript);
-      } else if (window.AnswerEngine) {
-        reply = await AnswerEngine.answer(transcript);
-      }
-    } catch (e) {
-      console.error("Reasoning error:", e);
-      reply = "उत्तर देने में मुझे कठिनाई हुई।";
-    }
-
-    /* ---------- SPEAK ---------- */
-    try {
-      if (window.TTS) {
-        TTS.speak(reply);
-      }
-    } catch (e) {
-      console.error("TTS error:", e);
-    }
+  /* ---------- SPEAK ---------- */
+  if (window.TTS && reply) {
+    TTS.speak(reply);
+  }
+};
 
     /* ---------- PASSIVE MEMORY ---------- */
     setTimeout(() => {
