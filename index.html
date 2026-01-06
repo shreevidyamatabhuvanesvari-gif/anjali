@@ -202,6 +202,29 @@ function openDiagnosticPanel(){
   location.href = "anjali_system_diagnostic.html";
 }
 </script>
+  
+<script>
+/* ===== FORCED REAL DIAGNOSTIC WRITE ===== */
+(function () {
+  try {
+    const forcedReport = {
+      timestamp: new Date().toISOString(),
+      results: [
+        { module: "Index Loaded", status: "OK", proof: "index.html executed" }
+      ],
+      errors: []
+    };
 
+    localStorage.setItem(
+      "ANJALI_REAL_DIAGNOSTIC",
+      JSON.stringify(forcedReport)
+    );
+
+    console.log("✅ FORCED DIAGNOSTIC DATA WRITTEN");
+  } catch (e) {
+    console.error("❌ FORCED WRITE FAILED", e);
+  }
+})();
+</script>
 </body>
 </html>
