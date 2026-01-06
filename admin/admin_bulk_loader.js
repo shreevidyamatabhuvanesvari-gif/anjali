@@ -1,58 +1,60 @@
 /* =========================================================
    admin/admin_bulk_loader.js
-   Role: BULK Q&A IMPORTER (1000+ SAFE)
+   Role: Bulk Q/A Importer (WORKING VERSION)
+   NOTE:
+   - यही structure पहले bulk में सफल था
+   - saveOne को loop में call करता है (safe)
    ========================================================= */
 
 (function () {
   "use strict";
 
   if (!window.KnowledgeBase) {
-    alert("KnowledgeBase not loaded");
+    console.error("KnowledgeBase missing");
     return;
   }
 
-  const btn = document.getElementById("bulkSave");
-  const textarea = document.getElementById("bulkInput");
-  const subjectBox = document.getElementById("bulkSubject");
+  const saveBtn = document.getElementById("bulkSave");
+  const input = document.getElementById("bulkInput");
+  const subjectInput = document.getElementById("bulkSubject");
   const info = document.getElementById("bulkInfo");
 
-  if (!btn || !textarea) return;
+  if (!saveBtn) return;
 
-  btn.onclick = async () => {
-    const raw = textarea.value.trim();
-    const subject = (subjectBox?.value || "").trim();
+  saveBtn.onclick = async () => {
+    const raw = input.value.trim();
+    const subject = subjectInput.value.trim();
 
     if (!raw) {
-      info.textContent = "कोई डेटा नहीं मिला";
+      info.textContent = "कोई प्रश्नोत्तर नहीं मिला।";
       return;
     }
 
     const blocks = raw.split(/\n\s*\n/);
-    const list = [];
-
-    blocks.forEach(b => {
-      const q = b.match(/Q:\s*(.+)/i);
-      const a = b.match(/A:\s*(.+)/i);
-      if (q && a) {
-        list.push({
-          question: q[1].trim(),
-          answer: a[1].trim(),
-          subject
-        });
-      }
-    });
-
-    if (!list.length) {
-      info.textContent = "प्रश्न–उत्तर format गलत है";
-      return;
-    }
+    let saved = 0;
 
     try {
       await KnowledgeBase.init();
-      const saved = await KnowledgeBase.saveMany(list);
-      info.textContent = `✅ ${saved} प्रश्न सेव हुए`;
-      textarea.value = "";
+
+      for (const block of blocks) {
+        const q = block.match(/Q:\s*(.+)/i);
+        const a = block.match(/A:\s*(.+)/i);
+
+        if (q && a) {
+          await KnowledgeBase.saveOne({
+            question: q[1].trim(),
+            answer: a[1].trim(),
+            subject
+          });
+          saved++;
+        }
+      }
+
+      info.textContent = `✅ सेव हुए प्रश्न: ${saved}`;
+      input.value = "";
+
     } catch (e) {
+      console.error(e);
       info.textContent = "❌ Bulk सेव विफल";
     }
   };
