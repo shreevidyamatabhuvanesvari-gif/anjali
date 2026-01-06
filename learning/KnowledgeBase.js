@@ -1,25 +1,28 @@
 /* =========================================================
    learning/KnowledgeBase.js
-   Role: Offline Q&A Storage (STABLE – PROVEN)
+   Role: Offline Question–Answer Storage (WORKING & STABLE)
+   NOTE:
+   - यही फाइल पहले 1000+ bulk में काम कर रही थी
+   - कोई extra field / tag / experiment नहीं
    ========================================================= */
 
 (function (window) {
   "use strict";
 
   const DB_NAME = "AnjaliKnowledgeDB";
-  const DB_VERSION = 1;              // ❗ NEVER change
+  const DB_VERSION = 1;          // ❗ कभी न बदलें
   const STORE = "qa_store";
 
   let db = null;
 
-  /* ---------- OPEN DB ---------- */
+  /* ---------- OPEN DATABASE ---------- */
   function openDB() {
     if (db) return Promise.resolve(db);
 
     return new Promise((resolve, reject) => {
       const req = indexedDB.open(DB_NAME, DB_VERSION);
 
-      req.onupgradeneeded = e => {
+      req.onupgradeneeded = function (e) {
         const d = e.target.result;
         if (!d.objectStoreNames.contains(STORE)) {
           d.createObjectStore(STORE, {
@@ -29,22 +32,15 @@
         }
       };
 
-      req.onsuccess = e => {
+      req.onsuccess = function (e) {
         db = e.target.result;
         resolve(db);
       };
 
-      req.onerror = () => reject("IndexedDB open failed");
+      req.onerror = function () {
+        reject("IndexedDB open failed");
+      };
     });
-  }
-
-  /* ---------- NORMALIZE ---------- */
-  function normalize(text) {
-    return String(text || "")
-      .toLowerCase()
-      .replace(/[^\u0900-\u097F\s]/g, " ")
-      .replace(/\s+/g, " ")
-      .trim();
   }
 
   /* ---------- API ---------- */
@@ -55,9 +51,11 @@
       return true;
     },
 
-    /* ===== SINGLE SAVE (WORKING) ===== */
+    /* ---------- SAVE SINGLE ---------- */
     async saveOne({ question, answer, subject = "" }) {
-      if (!question || !answer) throw new Error("Q/A required");
+      if (!question || !answer) {
+        throw new Error("Question and Answer required");
+      }
 
       const d = await openDB();
 
@@ -69,7 +67,6 @@
           question,
           answer,
           subject,
-          question_norm: normalize(question),
           time: Date.now()
         });
 
@@ -78,51 +75,21 @@
       });
     },
 
-    /* ===== BULK SAVE (1000+ SAFE) ===== */
-    async saveMany(list = []) {
-      if (!Array.isArray(list) || !list.length) return 0;
-
-      const d = await openDB();
-
-      return new Promise(resolve => {
-        let saved = 0;
-        const tx = d.transaction(STORE, "readwrite");
-        const store = tx.objectStore(STORE);
-
-        list.forEach(item => {
-          if (item.question && item.answer) {
-            store.add({
-              question: item.question,
-              answer: item.answer,
-              subject: item.subject || "",
-              question_norm: normalize(item.question),
-              time: Date.now()
-            });
-            saved++;
-          }
-        });
-
-        tx.oncomplete = () => resolve(saved);
-        tx.onerror = () => resolve(saved);
-      });
-    },
-
+    /* ---------- GET ALL ---------- */
     async getAll() {
       const d = await openDB();
-      return new Promise(resolve => {
+
+      return new Promise((resolve) => {
         const tx = d.transaction(STORE, "readonly");
         const store = tx.objectStore(STORE);
         const req = store.getAll();
+
         req.onsuccess = () => resolve(req.result || []);
         req.onerror = () => resolve([]);
       });
     }
   };
 
-  Object.defineProperty(window, "KnowledgeBase", {
-    value: KnowledgeBase,
-    writable: false,
-    configurable: false
-  });
+  window.KnowledgeBase = KnowledgeBase;
 
 })(window);
