@@ -93,7 +93,6 @@ pre{
     तो पहले <b>index.html</b> खोलकर सिस्टम चलाएँ।
   </div>
 
-  <!-- 🔍 REAL DIAGNOSTIC OUTPUT -->
   <div id="diagnosticResults"></div>
 
   <div class="footer">
@@ -104,19 +103,18 @@ pre{
 <script>
 /* ===============================
    REAL DIAGNOSTIC RENDERER
-   Reads data from localStorage
    =============================== */
 
 document.addEventListener("DOMContentLoaded", function () {
 
   const container = document.getElementById("diagnosticResults");
 
-  let raw;
+  let raw = null;
   try {
-    raw = JSON.parse(
-      localStorage.getItem("ANJALI_REAL_DIAGNOSTIC")
-    );
-  } catch(e) {
+    raw =
+      window.AnjaliRealDiagnosticReport ||
+      JSON.parse(localStorage.getItem("ANJALI_REAL_DIAGNOSTIC"));
+  } catch (e) {
     raw = null;
   }
 
@@ -131,12 +129,35 @@ document.addEventListener("DOMContentLoaded", function () {
     return;
   }
 
+  /* ===== SCORE PERCENT RENDER ===== */
+  if (typeof raw.scorePercent === "number") {
+    const percent = Math.max(0, Math.min(100, raw.scorePercent));
+
+    const scoreCard = document.createElement("div");
+    scoreCard.className = "card";
+    scoreCard.innerHTML = `
+      <div class="row">
+        <div class="module">Overall System Health</div>
+        <div class="status-ok">${percent}%</div>
+      </div>
+      <div class="proof">
+        Calculated from runtime checks (OK = full, PARTIAL = half, MISSING = zero)
+      </div>
+      <div style="margin-top:10px;height:10px;background:#eee;border-radius:10px;overflow:hidden;">
+        <div style="width:${percent}%;height:100%;background:linear-gradient(90deg,#4caf50,#81c784);border-radius:10px;"></div>
+      </div>
+    `;
+    container.appendChild(scoreCard);
+  }
+
+  /* ===== GENERATED TIME ===== */
   let html = `
     <div class="card">
       <b>Generated At:</b> ${raw.timestamp}
     </div>
   `;
 
+  /* ===== MODULE RESULTS ===== */
   raw.results.forEach(m => {
     let statusClass = "status-missing";
     if (m.status === "OK") statusClass = "status-ok";
@@ -153,6 +174,7 @@ document.addEventListener("DOMContentLoaded", function () {
     `;
   });
 
+  /* ===== RUNTIME ERRORS ===== */
   if (raw.errors && raw.errors.length) {
     html += `
       <div class="card">
@@ -164,53 +186,11 @@ document.addEventListener("DOMContentLoaded", function () {
     `;
   }
 
-  container.innerHTML = html;
+  container.innerHTML += html;
+
 });
-
-  /* ===== SCORE PERCENT RENDER (SAFE) ===== */
-(function renderScorePercent(report, container) {
-  try {
-    if (!report || typeof report.scorePercent !== "number") return;
-
-    const percent = Math.max(0, Math.min(100, report.scorePercent));
-
-    const scoreCard = document.createElement("div");
-    scoreCard.className = "card";
-
-    scoreCard.innerHTML = `
-      <div class="row">
-        <div class="module">Overall System Health</div>
-        <div class="status-ok">${percent}%</div>
-      </div>
-      <div class="proof">
-        Calculated from runtime checks (OK = full, PARTIAL = half, MISSING = zero)
-      </div>
-      <div style="
-        margin-top:10px;
-        height:10px;
-        background:#eee;
-        border-radius:10px;
-        overflow:hidden;
-      ">
-        <div style="
-          width:${percent}%;
-          height:100%;
-          background:linear-gradient(90deg,#4caf50,#81c784);
-          border-radius:10px;
-        "></div>
-      </div>
-    `;
-
-    /* सबसे ऊपर दिखाएँ */
-    container.prepend(scoreCard);
-
-  } catch (e) {
-    /* जानबूझकर silent */
-  }
-})(raw, container);
-  
 </script>
-  <!-- ===== SCRIPTS (Alphabetical Order) ===== -->
+
 <script src="diagnostics/anjali_diagnostic_bridge.js"></script>
 <script src="diagnostics/anjali_real_diagnostic.js"></script>
 
