@@ -1,13 +1,11 @@
-/* =========================================
-   Anjali Diagnostic Score Calculator
-   Computes overall system health percentage
-   ========================================= */
-
+/* ========================================= 
+Anjali Diagnostic Score Calculator
+Computes overall system health percentage
+========================================= */
 (function () {
   "use strict";
 
   function calculateScore() {
-
     const report = window.AnjaliRealDiagnosticReport;
     const spec = window.AnjaliDiagnosticSpec;
     const weights = window.AnjaliDiagnosticWeights;
@@ -32,30 +30,21 @@
       totalWeight += weight;
 
       /* Find matching diagnostic result */
-      const result = report.results.find(r =>
-        r.module.toLowerCase().includes(item.label.toLowerCase())
-      );
-
+      const result = report.results.find(r => r.module.toLowerCase().includes(item.label.toLowerCase()));
       if (result) {
         achievedWeight += weight * statusFactor(result.status);
       }
     });
 
     /* Normalize to percentage */
-    const percent =
-      totalWeight > 0
-        ? Math.round((achievedWeight / totalWeight) * 100)
-        : 0;
+    const percent = totalWeight > 0 ? Math.round((achievedWeight / totalWeight) * 100) : 0;
 
     /* Attach to report */
     report.scorePercent = percent;
 
     /* Persist updated report */
     try {
-      localStorage.setItem(
-        "ANJALI_REAL_DIAGNOSTIC",
-        JSON.stringify(report)
-      );
+      localStorage.setItem("ANJALI_REAL_DIAGNOSTIC", JSON.stringify(report));
     } catch (e) {
       console.error("Diagnostic score save failed", e);
     }
@@ -67,5 +56,4 @@
   } else {
     calculateScore();
   }
-
 })();
