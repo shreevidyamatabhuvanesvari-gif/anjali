@@ -156,7 +156,9 @@
       /* === OUTPUT DISPATCH === */
       if (window.AnjaliCore && window.AnjaliCore.isActive()) {
         safeExecute(() => {
-          window.AnjaliCore.speakResponse(finalDecision.text);
+          if (window.ResponseEngine) {
+  window.ResponseEngine.onDecision(finalDecision);
+}
         }, "CORE_OUTPUT");
       }
 
