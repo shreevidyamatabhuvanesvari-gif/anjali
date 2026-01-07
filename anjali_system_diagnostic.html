@@ -100,6 +100,16 @@ pre{
   </div>
 </div>
 
+  <!-- ===============================
+     DIAGNOSTIC ENGINES (ORDER MATTERS)
+     =============================== -->
+<script src="diagnostics/anjali_diagnostic_bridge.js"></scri
+<script src="diagnostics/anjali_diagnostic_spec.js"></script>
+<script src="diagnostics/anjali_diagnostic_weights.js"></script>
+
+<script src="diagnostics/anjali_real_diagnostic.js" defer></script>
+<script src="diagnostics/anjali_diagnostic_score.js"></script>
+  <script src="diagnostics/anjali_diagnostic_weights.js"></script>
 <script>
 /* ===============================
    REAL DIAGNOSTIC RENDERER
@@ -190,9 +200,6 @@ document.addEventListener("DOMContentLoaded", function () {
 
 });
 </script>
-
-<script src="diagnostics/anjali_diagnostic_bridge.js"></script>
-<script src="diagnostics/anjali_real_diagnostic.js"></script>
 
 </body>
 </html>
