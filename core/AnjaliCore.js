@@ -1,152 +1,139 @@
+/* ==================================================
+   Anjali Core — REAL OPERATIONAL RUNTIME KERNEL
+   ================================================== */
 (function () {
   "use strict";
 
-  const STORAGE_KEY = "ANJALI_CORE_STATE_v1";
-
   /* ---------- INTERNAL STATE ---------- */
-  let state = {
-    active: false,
-    startedAt: null,
-    sessionId: null,
-    lastInput: null,
-    lastOutput: null,
-    errorLog: []
-  };
+  let _active = false;
+  let _startedAt = null;
+  let _errorLog = [];
 
-  /* ---------- STATE RECOVERY ---------- */
-  try {
-    const saved = localStorage.getItem(STORAGE_KEY);
-    if (saved) {
-      const parsed = JSON.parse(saved);
-      if (parsed && typeof parsed === "object") {
-        state = { ...state, ...parsed };
-      }
-    }
-  } catch (_) {
-    // corrupt state ignored deliberately
+  const CORE_KEY = "__ANJALI_CORE__v1";
+
+  /* ---------- UTILITIES ---------- */
+  function now() {
+    return new Date().toISOString();
   }
 
-  /* ---------- PERSISTENCE ---------- */
+  function checksum(obj) {
+    try {
+      return btoa(unescape(encodeURIComponent(JSON.stringify(obj)))).length;
+    } catch {
+      return 0;
+    }
+  }
+
   function persist() {
     try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+      const payload = {
+        a: _active ? 1 : 0,
+        s: _startedAt,
+      };
+      const pack = {
+        d: payload,
+        c: checksum(payload)
+      };
+      localStorage.setItem(CORE_KEY, JSON.stringify(pack));
     } catch (e) {
-      state.errorLog.push({
-        type: "PERSISTENCE",
-        at: Date.now(),
-        message: e.message
-      });
+      _errorLog.push({ t: "persist", m: e.message, at: now() });
     }
   }
 
-  /* ---------- LIFECYCLE ---------- */
+  function restore() {
+    try {
+      const raw = localStorage.getItem(CORE_KEY);
+      if (!raw) return;
+
+      const pack = JSON.parse(raw);
+      if (!pack || !pack.d || pack.c !== checksum(pack.d)) return;
+
+      _active = pack.d.a === 1;
+      _startedAt = pack.d.s || null;
+    } catch {
+      /* ignore corrupted storage */
+    }
+  }
+
+  restore();
+
+  /* ---------- CORE LIFECYCLE ---------- */
   function start() {
-    if (state.active) return;
+    if (_active) return;
 
-    state.active = true;
-    state.startedAt = Date.now();
-    state.sessionId = "sess_" + Math.random().toString(36).slice(2);
+    _active = true;
+    _startedAt = now();
 
-    if (window.TTS && typeof window.TTS.init === "function") {
-      try {
+    try {
+      if (window.TTS && typeof window.TTS.init === "function") {
         window.TTS.init();
-      } catch (e) {
-        state.errorLog.push({
-          type: "TTS_INIT",
-          at: Date.now(),
-          message: e.message
-        });
       }
+    } catch (e) {
+      _errorLog.push({ t: "TTS_INIT", m: e.message, at: now() });
     }
 
     persist();
   }
 
   function stop() {
-    state.active = false;
+    _active = false;
     persist();
   }
 
-  /* ---------- INPUT PIPELINE ---------- */
-  function ingestUserText(text) {
-    if (!state.active || typeof text !== "string") return;
+  /* ---------- INPUT FLOW ---------- */
+  function onUserSpeech(text) {
+    if (!_active || typeof text !== "string") return;
 
-    state.lastInput = {
-      text,
-      at: Date.now()
-    };
-
-    if (
-      window.ReasoningEngine &&
-      typeof window.ReasoningEngine.process === "function"
-    ) {
-      try {
+    try {
+      if (
+        window.ReasoningEngine &&
+        typeof window.ReasoningEngine.process === "function"
+      ) {
         window.ReasoningEngine.process(text);
-      } catch (e) {
-        state.errorLog.push({
-          type: "REASONING",
-          at: Date.now(),
-          message: e.message
-        });
       }
+    } catch (e) {
+      _errorLog.push({ t: "REASONING", m: e.message, at: now() });
     }
-
-    persist();
   }
 
-  /* ---------- OUTPUT PIPELINE ---------- */
-  function emitResponse(text) {
-    if (!state.active || typeof text !== "string") return;
+  /* ---------- OUTPUT FLOW ---------- */
+  function speak(text) {
+    if (!_active || !text) return;
 
-    state.lastOutput = {
-      text,
-      at: Date.now()
-    };
-
-    if (window.TTS && typeof window.TTS.speak === "function") {
-      try {
+    try {
+      if (window.TTS && typeof window.TTS.speak === "function") {
         window.TTS.speak(text);
-      } catch (e) {
-        state.errorLog.push({
-          type: "TTS_SPEAK",
-          at: Date.now(),
-          message: e.message
-        });
       }
+    } catch (e) {
+      _errorLog.push({ t: "TTS_SPEAK", m: e.message, at: now() });
     }
-
-    persist();
   }
 
-  /* ---------- DIAGNOSTIC TRUTH ---------- */
-  function getStatus() {
+  /* ---------- DIAGNOSTIC ---------- */
+  function status() {
     return {
-      active: state.active,
-      sessionId: state.sessionId,
-      uptimeMs: state.startedAt ? Date.now() - state.startedAt : 0,
-      io: {
-        hasInput: !!state.lastInput,
-        hasOutput: !!state.lastOutput
-      },
-      voice: {
+      active: _active,
+      startedAt: _startedAt,
+      subsystems: {
         stt: !!(window.STT && typeof window.STT.start === "function"),
-        tts: !!(window.TTS && typeof window.TTS.speak === "function")
+        tts: !!(window.TTS && typeof window.TTS.speak === "function"),
+        reasoning: !!(
+          window.ReasoningEngine &&
+          typeof window.ReasoningEngine.process === "function"
+        )
       },
-      reasoningReady:
-        !!(window.ReasoningEngine &&
-           typeof window.ReasoningEngine.process === "function"),
-      errorCount: state.errorLog.length
+      errorCount: _errorLog.length
     };
   }
 
-  /* ---------- PUBLIC CORE ---------- */
-  window.AnjaliCore = {
+  /* ---------- PUBLIC KERNEL ---------- */
+  window.AnjaliCore = Object.freeze({
     start,
     stop,
-    isActive: () => state.active,
-    ingestUserText,
-    emitResponse,
-    getStatus
-  };
+    isActive: () => _active,
+    onUserSpeech,
+    speakResponse: speak,
+    getStatus: status
+  });
 
 })();
