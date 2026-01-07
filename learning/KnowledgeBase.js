@@ -55,19 +55,54 @@
     "ाकर","ायी","ाये","ों","ें","ी","ा"
   ];
 
-  function lemmatizeHindi(word) {
-  if (LEMMA_MAP[word]) return LEMMA_MAP[word];
-  let w = word;
-  let longestSuffix = '';
-  for (const suf of SUFFIXES) {
-    if (w.endsWith(suf) && suf.length > longestSuffix.length) {
-      longestSuffix = suf;
+  /* ===============================
+   SAFE STEMMING PATCH (Hindi)
+   Purpose:
+   - Prevent ReferenceError
+   - Never break search/save pipeline
+   =============================== */
+
+function safeStemHindi(word) {
+  try {
+    /* basic guard */
+    if (typeof word !== "string" || !word) return "";
+
+    /* ensure dependencies exist */
+    const lemmaMap =
+      typeof LEMMA_MAP === "object" && LEMMA_MAP !== null
+        ? LEMMA_MAP
+        : {};
+
+    const suffixes =
+      Array.isArray(SUFFIXES)
+        ? SUFFIXES
+        : [];
+
+    /* lemma resolution */
+    if (lemmaMap[word]) {
+      return String(lemmaMap[word]);
     }
+
+    let w = word;
+
+    for (let i = 0; i < suffixes.length; i++) {
+      const suf = suffixes[i];
+      if (
+        typeof suf === "string" &&
+        w.endsWith(suf) &&
+        w.length > suf.length + 1
+      ) {
+        w = w.slice(0, -suf.length);
+        break;
+      }
+    }
+
+    return w;
+
+  } catch (e) {
+    /* LAST RESORT: return original word */
+    return word;
   }
-  if (longestSuffix) {
-    w = w.slice(0, -longestSuffix.length);
-  }
-  return w;
 }
 
   /* ===============================
