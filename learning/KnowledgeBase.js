@@ -119,7 +119,7 @@ function safeStemHindi(word) {
   function tokenize(text) {
     return normalize(text)
       .split(" ")
-      .map(w => stemHindi(w))
+      .map(w => safeStemHindi(word)
       .filter(w => w.length > 2 && !STOP_WORDS.has(w));
   }
 
