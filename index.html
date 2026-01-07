@@ -162,7 +162,7 @@ function updateEmotion(emotion){
 function startConversation(){
   const status = document.getElementById("appStatus");
 
-  if(window.TTS && !audioUnlocked){
+  if (window.TTS && !audioUnlocked) {
     TTS.init();
     audioUnlocked = true;
   }
@@ -171,25 +171,34 @@ function startConversation(){
   status.textContent = "मैं सुन रही हूँ…";
   updateEmotion("neutral");
 
-  if(window.STT){
+  if (window.STT) {
     STT.start();
+  }
+
+  /* 🔴 Diagnostic को सही समय पर, एक बार चलाना */
+  if (window.runAnjaliDiagnostic && !window.__anjaliDiagnosticRan) {
+    window.__anjaliDiagnosticRan = true;
+
+    setTimeout(() => {
+      window.runAnjaliDiagnostic();
+    }, 300);
   }
 }
 
 /* 🔁 Called by AnswerEngine */
 window.onAnjaliAnswered = function (emotion){
-  if(!conversationActive) return;
+  if (!conversationActive) return;
 
   updateEmotion(emotion || "neutral");
 
   const status = document.getElementById("appStatus");
   status.textContent = "मैं सुन रही हूँ…";
 
-  setTimeout(()=>{
-    if(window.STT && conversationActive){
+  setTimeout(() => {
+    if (window.STT && conversationActive) {
       STT.start();
     }
-  },500);
+  }, 500);
 };
 
 /* 🔘 Button Bindings */
