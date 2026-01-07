@@ -1,28 +1,23 @@
 /* =========================================
    Anjali Diagnostic Weights
-   Step 2: Weight per Check
+   Defines importance of each check
    ========================================= */
 
 (function () {
   "use strict";
 
   /*
-    Weight नियम:
-    - Mandatory checks का weight ज़्यादा
-    - Optional checks का weight कम
-    - Total weight = 100
+    Weight rules:
+    - Higher weight = more impact on overall health
+    - Sum does NOT need to be 100 (normalized later)
   */
 
-  const WEIGHTS = {
-    index_loaded: 30,
-    core_available: 30,
-    ui_start_button: 20,
-    voice_tts: 10,
-    voice_stt: 10
-  };
-
   window.AnjaliDiagnosticWeights = {
-    weights: WEIGHTS
+    index_loaded: 20,        // App loaded correctly
+    core_available: 30,      // Core consciousness (most important)
+    ui_start_button: 20,     // User interaction possible
+    voice_tts: 15,           // Speaking ability
+    voice_stt: 15            // Listening ability
   };
 
 })();
