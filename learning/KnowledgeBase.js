@@ -55,18 +55,20 @@
     "ाकर","ायी","ाये","ों","ें","ी","ा"
   ];
 
-  function stemHindi(word) {
-    if (LEMMA_MAP[word]) return LEMMA_MAP[word];
-
-    let w = word;
-    for (const suf of SUFFIXES) {
-      if (w.endsWith(suf) && w.length > suf.length + 1) {
-        w = w.slice(0, -suf.length);
-        break;
-      }
+  function lemmatizeHindi(word) {
+  if (LEMMA_MAP[word]) return LEMMA_MAP[word];
+  let w = word;
+  let longestSuffix = '';
+  for (const suf of SUFFIXES) {
+    if (w.endsWith(suf) && suf.length > longestSuffix.length) {
+      longestSuffix = suf;
     }
-    return w;
   }
+  if (longestSuffix) {
+    w = w.slice(0, -longestSuffix.length);
+  }
+  return w;
+}
 
   /* ===============================
      NORMALIZATION + TOKENIZATION
