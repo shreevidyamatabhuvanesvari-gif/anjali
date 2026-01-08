@@ -2,8 +2,6 @@
    KnowledgeBase — Level-4 / Version-4.x (Hindi Only)
    PURPOSE:
    अंजली एप का एकमात्र, विश्वसनीय, ऑफलाइन ज्ञान भंडार।
-   यह लेख संग्रहित करता है, खोजता है, स्टेमिंग + लेम्मेटाइजेशन
-   के माध्यम से वास्तविक प्रश्नों से उत्तर निकालने में सहायता करता है।
    ========================================================== */
 
 (function () {
@@ -15,9 +13,6 @@
   const ARTICLES = [];
   const ERROR_LOG = [];
 
-  /* ===============================
-     TIME UTILITY
-     =============================== */
   function now() {
     return new Date().toISOString();
   }
@@ -31,22 +26,12 @@
   ]);
 
   /* ===============================
-     ADVANCED HINDI STEM + LEMMA
-     (Rule-based, Offline)
+     LEMMA + SUFFIX DATA
      =============================== */
-
   const LEMMA_MAP = {
-    "किया": "कर",
-    "करता": "कर",
-    "करती": "कर",
-    "करेगा": "कर",
-    "करेगी": "कर",
-    "गया": "जा",
-    "जाती": "जा",
-    "जाएगा": "जा",
-    "आया": "आ",
-    "आती": "आ",
-    "आएगा": "आ"
+    "किया": "कर","करता": "कर","करती": "कर","करेगा": "कर","करेगी": "कर",
+    "गया": "जा","जाती": "जा","जाएगा": "जा",
+    "आया": "आ","आती": "आ","आएगा": "आ"
   };
 
   const SUFFIXES = [
@@ -56,57 +41,30 @@
   ];
 
   /* ===============================
-   SAFE STEMMING PATCH (Hindi)
-   Purpose:
-   - Prevent ReferenceError
-   - Never break search/save pipeline
-   =============================== */
+     SAFE STEMMER (Hindi)
+     =============================== */
+  function safeStemHindi(word) {
+    try {
+      if (typeof word !== "string" || !word) return "";
 
-function safeStemHindi(word) {
-  try {
-    /* basic guard */
-    if (typeof word !== "string" || !word) return "";
+      if (LEMMA_MAP[word]) return LEMMA_MAP[word];
 
-    /* ensure dependencies exist */
-    const lemmaMap =
-      typeof LEMMA_MAP === "object" && LEMMA_MAP !== null
-        ? LEMMA_MAP
-        : {};
-
-    const suffixes =
-      Array.isArray(SUFFIXES)
-        ? SUFFIXES
-        : [];
-
-    /* lemma resolution */
-    if (lemmaMap[word]) {
-      return String(lemmaMap[word]);
-    }
-
-    let w = word;
-
-    for (let i = 0; i < suffixes.length; i++) {
-      const suf = suffixes[i];
-      if (
-        typeof suf === "string" &&
-        w.endsWith(suf) &&
-        w.length > suf.length + 1
-      ) {
-        w = w.slice(0, -suf.length);
-        break;
+      let w = word;
+      for (let i = 0; i < SUFFIXES.length; i++) {
+        const suf = SUFFIXES[i];
+        if (w.endsWith(suf) && w.length > suf.length + 1) {
+          w = w.slice(0, -suf.length);
+          break;
+        }
       }
+      return w;
+    } catch (e) {
+      return word;
     }
-
-    return w;
-
-  } catch (e) {
-    /* LAST RESORT: return original word */
-    return word;
   }
-}
 
   /* ===============================
-     NORMALIZATION + TOKENIZATION
+     NORMALIZE + TOKENIZE  ✅ FIXED
      =============================== */
   function normalize(text) {
     return String(text || "")
@@ -119,35 +77,15 @@ function safeStemHindi(word) {
   function tokenize(text) {
     return normalize(text)
       .split(" ")
-      .map(w => safeStemHindi(word)
+      .map(w => safeStemHindi(w))   // ✅ FIX HERE
       .filter(w => w.length > 2 && !STOP_WORDS.has(w));
-  }
-
-  /* ===============================
-     SAFE EXECUTION
-     =============================== */
-  function safe(fn, source) {
-    try {
-      return fn();
-    } catch (e) {
-      ERROR_LOG.push({
-        at: now(),
-        source,
-        message: e.message
-      });
-      return null;
-    }
   }
 
   /* ===============================
      ARTICLE MANAGEMENT
      =============================== */
   function addArticle(article) {
-    if (
-      !article ||
-      typeof article.title !== "string" ||
-      typeof article.text !== "string"
-    ) {
+    if (!article || typeof article.title !== "string" || typeof article.text !== "string") {
       return false;
     }
 
@@ -155,7 +93,7 @@ function safeStemHindi(word) {
       id: "KB-" + (ARTICLES.length + 1),
       title: article.title.trim(),
       text: article.text.trim(),
-      tokens: tokenize(article.text),
+      tokens: tokenize(article.text), // ✅ अब सही tokens
       addedAt: now(),
       source: article.source || "manual"
     };
@@ -174,7 +112,7 @@ function safeStemHindi(word) {
   }
 
   /* ===============================
-     SEARCH (REAL, HONEST)
+     SEARCH
      =============================== */
   function search(query) {
     const qTokens = tokenize(query);
@@ -196,9 +134,7 @@ function safeStemHindi(word) {
       }
     });
 
-    if (!best || bestScore < 0.18) {
-      return null; // ईमानदार अस्वीकार
-    }
+    if (!best || bestScore < 0.18) return null;
 
     return {
       title: best.title,
@@ -215,16 +151,12 @@ function safeStemHindi(word) {
     return {
       articleCount: ARTICLES.length,
       errorCount: ERROR_LOG.length,
-      recentErrors: ERROR_LOG.slice(-5),
       language: "hi",
       level: "4.x",
       role: "knowledge-store"
     };
   }
 
-  /* ===============================
-     GLOBAL EXPOSE
-     =============================== */
   window.KnowledgeBase = Object.freeze({
     addArticle,
     listArticles,
@@ -232,44 +164,6 @@ function safeStemHindi(word) {
     getStatus,
     level: "4.x",
     mode: "operational"
-  });
-
-  /* ======================================================
-     BASE ARTICLES (REAL, COPY-WORTHY, HINDI)
-     ====================================================== */
-
-  addArticle({
-    title: "मानव सोच और निर्णय",
-    source: "Anjali Foundation",
-    text: `
-मानव सोच तर्क, अनुभव और भावना के संयोजन से विकसित होती है।
-जब कोई प्रश्न पूछा जाता है, तो मन पहले स्मृति में उपलब्ध
-अनुभवों को खोजता है। यदि समान स्थिति पहले आई हो,
-तो निर्णय अधिक स्पष्ट और तेज़ होता है।
-
-जब अनुभव उपलब्ध न हो, तब तर्क और अनुमान का सहारा लिया जाता है।
-इस स्थिति में निर्णय में अनिश्चितता स्वाभाविक होती है।
-`
-  });
-
-  addArticle({
-    title: "ज्ञान और समझ का अंतर",
-    source: "Anjali Foundation",
-    text: `
-ज्ञान तथ्यों का संग्रह है, जबकि समझ उन तथ्यों को
-परिस्थिति के अनुसार लागू करने की क्षमता है।
-समझ अनुभव, आत्मचिंतन और समय के साथ विकसित होती है।
-`
-  });
-
-  addArticle({
-    title: "प्रश्न पूछने की शक्ति",
-    source: "Anjali Foundation",
-    text: `
-सही प्रश्न किसी भी उत्तर से अधिक महत्वपूर्ण होता है।
-स्पष्ट प्रश्न सोच को दिशा देता है और उत्तर को सरल बनाता है।
-अस्पष्ट प्रश्नों में उत्तर देने से पहले प्रश्न को समझना आवश्यक होता है।
-`
   });
 
 })();
