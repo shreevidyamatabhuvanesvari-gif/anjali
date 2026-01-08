@@ -51,18 +51,22 @@
      SAFE STEMMER
      =============================== */
   function stem(word) {
-    if (typeof word !== "string" || !word) return "";
-    if (LEMMA_MAP[word]) return LEMMA_MAP[word];
+    try {
+      if (typeof word !== "string" || !word) return "";
+      if (LEMMA_MAP[word]) return LEMMA_MAP[word];
 
-    let w = word;
-    for (let i = 0; i < SUFFIXES.length; i++) {
-      const suf = SUFFIXES[i];
-      if (w.endsWith(suf) && w.length > suf.length + 1) {
-        w = w.slice(0, -suf.length);
-        break;
+      let w = word;
+      for (let i = 0; i < SUFFIXES.length; i++) {
+        const suf = SUFFIXES[i];
+        if (w.endsWith(suf) && w.length > suf.length + 1) {
+          w = w.slice(0, -suf.length);
+          break;
+        }
       }
+      return w;
+    } catch {
+      return word;
     }
-    return w;
   }
 
   /* ===============================
@@ -84,15 +88,41 @@
   }
 
   /* ===============================
-     RESTORE (ARTICLES + QUESTIONS)
+     RESTORE (SAFE + REBUILD TOKENS)
      =============================== */
   (function restore() {
     try {
       const a = JSON.parse(localStorage.getItem(ARTICLE_KEY) || "[]");
-      if (Array.isArray(a)) a.forEach(x => ARTICLES.push(x));
+      if (Array.isArray(a)) {
+        a.forEach(x => {
+          if (x && x.title && x.text) {
+            ARTICLES.push({
+              id: x.id || "A-" + (ARTICLES.length + 1),
+              title: x.title,
+              text: x.text,
+              tokens: tokenize(x.text),
+              addedAt: x.addedAt || now(),
+              source: x.source || "restored"
+            });
+          }
+        });
+      }
 
       const q = JSON.parse(localStorage.getItem(QUESTION_KEY) || "[]");
-      if (Array.isArray(q)) q.forEach(x => QUESTIONS.push(x));
+      if (Array.isArray(q)) {
+        q.forEach(x => {
+          if (x && x.question && x.answer) {
+            QUESTIONS.push({
+              id: x.id || "Q-" + (QUESTIONS.length + 1),
+              question: x.question,
+              answer: x.answer,
+              tokens: tokenize(x.question),
+              addedAt: x.addedAt || now(),
+              source: x.source || "restored"
+            });
+          }
+        });
+      }
     } catch (e) {
       ERROR_LOG.push({ at: now(), source: "RESTORE", message: e.message });
     }
