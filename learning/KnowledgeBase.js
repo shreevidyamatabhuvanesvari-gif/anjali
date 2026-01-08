@@ -1,7 +1,8 @@
 /* ==========================================================
    KnowledgeBase — Level-4 / Version-4.x (Hindi Only)
    PURPOSE:
-   अंजली एप का एकमात्र, विश्वसनीय, ऑफलाइन ज्ञान + प्रश्नोत्तर भंडार।
+   अंजली एप का एकमात्र, विश्वसनीय, ऑफलाइन
+   ज्ञान + प्रश्नोत्तर भंडार (Persistent).
    ========================================================== */
 
 (function () {
@@ -25,7 +26,7 @@
   }
 
   /* ===============================
-     STOP WORDS (हिन्दी)
+     STOP WORDS (Hindi)
      =============================== */
   const STOP_WORDS = new Set([
     "और","का","की","के","को","में","से","पर","यह","वह",
@@ -48,23 +49,31 @@
   ];
 
   /* ===============================
-     SAFE STEMMER
+     SAFE STEMMER (Mobile-Safe)
      =============================== */
   function stem(word) {
     try {
       if (typeof word !== "string" || !word) return "";
-      if (LEMMA_MAP[word]) return LEMMA_MAP[word];
+
+      if (LEMMA_MAP[word]) {
+        return LEMMA_MAP[word];
+      }
 
       let w = word;
       for (let i = 0; i < SUFFIXES.length; i++) {
         const suf = SUFFIXES[i];
-        if (w.endsWith(suf) && w.length > suf.length + 1) {
+        if (
+          typeof suf === "string" &&
+          w.endsWith(suf) &&
+          w.length > suf.length + 1
+        ) {
           w = w.slice(0, -suf.length);
           break;
         }
       }
       return w;
-    } catch {
+
+    } catch (e) {
       return word;
     }
   }
@@ -83,45 +92,53 @@
   function tokenize(text) {
     return normalize(text)
       .split(" ")
-      .map(w => stem(w))
-      .filter(w => w.length > 2 && !STOP_WORDS.has(w));
+      .map(function (w) { return stem(w); })
+      .filter(function (w) {
+        return w.length > 2 && !STOP_WORDS.has(w);
+      });
   }
 
   /* ===============================
-     RESTORE (SAFE + REBUILD TOKENS)
+     RESTORE (ARTICLES + QUESTIONS)
      =============================== */
   (function restore() {
     try {
-      const a = JSON.parse(localStorage.getItem(ARTICLE_KEY) || "[]");
-      if (Array.isArray(a)) {
-        a.forEach(x => {
-          if (x && x.title && x.text) {
-            ARTICLES.push({
-              id: x.id || "A-" + (ARTICLES.length + 1),
-              title: x.title,
-              text: x.text,
-              tokens: tokenize(x.text),
-              addedAt: x.addedAt || now(),
-              source: x.source || "restored"
-            });
-          }
-        });
+      const aRaw = localStorage.getItem(ARTICLE_KEY);
+      if (aRaw) {
+        const a = JSON.parse(aRaw);
+        if (Array.isArray(a)) {
+          a.forEach(function (x) {
+            if (x && x.title && x.text) {
+              ARTICLES.push({
+                id: x.id || "A-" + (ARTICLES.length + 1),
+                title: x.title,
+                text: x.text,
+                tokens: tokenize(x.text),
+                addedAt: x.addedAt || now(),
+                source: x.source || "restored"
+              });
+            }
+          });
+        }
       }
 
-      const q = JSON.parse(localStorage.getItem(QUESTION_KEY) || "[]");
-      if (Array.isArray(q)) {
-        q.forEach(x => {
-          if (x && x.question && x.answer) {
-            QUESTIONS.push({
-              id: x.id || "Q-" + (QUESTIONS.length + 1),
-              question: x.question,
-              answer: x.answer,
-              tokens: tokenize(x.question),
-              addedAt: x.addedAt || now(),
-              source: x.source || "restored"
-            });
-          }
-        });
+      const qRaw = localStorage.getItem(QUESTION_KEY);
+      if (qRaw) {
+        const q = JSON.parse(qRaw);
+        if (Array.isArray(q)) {
+          q.forEach(function (x) {
+            if (x && x.question && x.answer) {
+              QUESTIONS.push({
+                id: x.id || "Q-" + (QUESTIONS.length + 1),
+                question: x.question,
+                answer: x.answer,
+                tokens: tokenize(x.question),
+                addedAt: x.addedAt || now(),
+                source: x.source || "restored"
+              });
+            }
+          });
+        }
       }
     } catch (e) {
       ERROR_LOG.push({ at: now(), source: "RESTORE", message: e.message });
@@ -144,7 +161,11 @@
      ADD ARTICLE
      =============================== */
   function addArticle(article) {
-    if (!article || typeof article.title !== "string" || typeof article.text !== "string") {
+    if (
+      !article ||
+      typeof article.title !== "string" ||
+      typeof article.text !== "string"
+    ) {
       return false;
     }
 
@@ -164,8 +185,10 @@
   /* ===============================
      ADD QUESTION
      =============================== */
-  function addQuestion(question, answer, source = "conversation") {
-    if (typeof question !== "string" || typeof answer !== "string") return false;
+  function addQuestion(question, answer, source) {
+    if (typeof question !== "string" || typeof answer !== "string") {
+      return false;
+    }
 
     QUESTIONS.push({
       id: "Q-" + (QUESTIONS.length + 1),
@@ -173,7 +196,7 @@
       answer: answer.trim(),
       tokens: tokenize(question),
       addedAt: now(),
-      source
+      source: source || "conversation"
     });
 
     persist();
@@ -181,7 +204,7 @@
   }
 
   /* ===============================
-     SEARCH (ARTICLE + Q&A)
+     SEARCH (ARTICLES + Q&A)
      =============================== */
   function search(query) {
     const qTokens = tokenize(query);
@@ -192,11 +215,13 @@
 
     function score(tokens) {
       let hit = 0;
-      qTokens.forEach(t => { if (tokens.includes(t)) hit++; });
+      qTokens.forEach(function (t) {
+        if (tokens.indexOf(t) !== -1) hit++;
+      });
       return hit / Math.max(qTokens.length, 1);
     }
 
-    ARTICLES.forEach(a => {
+    ARTICLES.forEach(function (a) {
       const s = score(a.tokens);
       if (s > bestScore) {
         bestScore = s;
@@ -204,7 +229,7 @@
       }
     });
 
-    QUESTIONS.forEach(q => {
+    QUESTIONS.forEach(function (q) {
       const s = score(q.tokens);
       if (s > bestScore) {
         bestScore = s;
@@ -215,7 +240,9 @@
     if (!best || bestScore < 0.18) return null;
 
     return {
-      ...best,
+      title: best.title,
+      content: best.content,
+      source: best.source,
       relevance: Number(bestScore.toFixed(2))
     };
   }
@@ -237,10 +264,10 @@
      GLOBAL EXPOSE
      =============================== */
   window.KnowledgeBase = Object.freeze({
-    addArticle,
-    addQuestion,
-    search,
-    getStatus,
+    addArticle: addArticle,
+    addQuestion: addQuestion,
+    search: search,
+    getStatus: getStatus,
     level: "4.x",
     mode: "operational"
   });
