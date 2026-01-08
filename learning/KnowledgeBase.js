@@ -13,6 +13,9 @@
   const ARTICLES = [];
   const ERROR_LOG = [];
 
+  /* ===============================
+     TIME
+     =============================== */
   function now() {
     return new Date().toISOString();
   }
@@ -46,7 +49,6 @@
   function safeStemHindi(word) {
     try {
       if (typeof word !== "string" || !word) return "";
-
       if (LEMMA_MAP[word]) return LEMMA_MAP[word];
 
       let w = word;
@@ -58,13 +60,13 @@
         }
       }
       return w;
-    } catch (e) {
+    } catch {
       return word;
     }
   }
 
   /* ===============================
-     NORMALIZE + TOKENIZE  ✅ FIXED
+     NORMALIZE + TOKENIZE
      =============================== */
   function normalize(text) {
     return String(text || "")
@@ -77,15 +79,66 @@
   function tokenize(text) {
     return normalize(text)
       .split(" ")
-      .map(w => safeStemHindi(w))   // ✅ FIX HERE
+      .map(w => safeStemHindi(w))
       .filter(w => w.length > 2 && !STOP_WORDS.has(w));
   }
 
   /* ===============================
-     ARTICLE MANAGEMENT
+     PERSISTENCE LAYER (SAFE)
+     =============================== */
+  const STORAGE_KEY = "ANJALI_KNOWLEDGE_BASE";
+
+  (function restoreArticles() {
+    try {
+      const saved = localStorage.getItem(STORAGE_KEY);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed)) {
+          parsed.forEach(a => {
+            if (
+              a &&
+              typeof a.title === "string" &&
+              typeof a.text === "string" &&
+              Array.isArray(a.tokens)
+            ) {
+              ARTICLES.push(a);
+            }
+          });
+        }
+      }
+    } catch (e) {
+      ERROR_LOG.push({
+        at: now(),
+        source: "KB_RESTORE",
+        message: e.message
+      });
+    }
+  })();
+
+  function persistArticles() {
+    try {
+      localStorage.setItem(
+        STORAGE_KEY,
+        JSON.stringify(ARTICLES)
+      );
+    } catch (e) {
+      ERROR_LOG.push({
+        at: now(),
+        source: "KB_PERSIST",
+        message: e.message
+      });
+    }
+  }
+
+  /* ===============================
+     ARTICLE MANAGEMENT (FINAL)
      =============================== */
   function addArticle(article) {
-    if (!article || typeof article.title !== "string" || typeof article.text !== "string") {
+    if (
+      !article ||
+      typeof article.title !== "string" ||
+      typeof article.text !== "string"
+    ) {
       return false;
     }
 
@@ -93,12 +146,13 @@
       id: "KB-" + (ARTICLES.length + 1),
       title: article.title.trim(),
       text: article.text.trim(),
-      tokens: tokenize(article.text), // ✅ अब सही tokens
+      tokens: tokenize(article.text),
       addedAt: now(),
       source: article.source || "manual"
     };
 
     ARTICLES.push(record);
+    persistArticles();
     return true;
   }
 
@@ -126,7 +180,6 @@
       qTokens.forEach(t => {
         if (article.tokens.includes(t)) hits++;
       });
-
       const score = hits / Math.max(qTokens.length, 1);
       if (score > bestScore) {
         bestScore = score;
@@ -157,6 +210,9 @@
     };
   }
 
+  /* ===============================
+     GLOBAL EXPOSE
+     =============================== */
   window.KnowledgeBase = Object.freeze({
     addArticle,
     listArticles,
