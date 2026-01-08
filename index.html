@@ -109,42 +109,54 @@
 
 </main>
 
-<!-- ===== CORE BASE ===== -->
+<!-- ===============================
+     CORE (सबसे पहले)
+     =============================== -->
 <script src="core/AnjaliCore.js"></script>
 
-  <!-- ===== KNOWLEDGE BASE / ANSWER RETRIEVAL ===== -->
-<script src="answer/KnowledgeAnswerEngine.js"></script>
-  
-  <!-- ===== REASONING (Level-4) ===== -->
-<script src="reasoning/ReasoningEngine.js"></script>
-  
-  <!-- ===== RESPONSE ENGINE (Level-4) ===== -->
-<script src="response/ResponseEngine.js"></script>
+<!-- ===============================
+     VOICE SYSTEM (Core के बाद)
+     =============================== -->
+<script src="voice/tts.js"></script>
+<script src="voice/stt.js"></script>
 
-<!-- ===== MEMORY / DATA ===== -->
+<!-- ===============================
+     MEMORY / KNOWLEDGE (पहले Data)
+     =============================== -->
 <script src="learning/KnowledgeBase.js"></script>
 <script src="learning/ExperienceMemory.js"></script>
 <script src="core/ContextMemory.js"></script>
 
-<!-- ===== THINKING ===== -->
+<!-- ===============================
+     KNOWLEDGE ANSWER RETRIEVAL
+     (KnowledgeBase के बाद)
+     =============================== -->
+<script src="answer/KnowledgeAnswerEngine.js"></script>
+<script src="answer/KnowledgeBridge.js"></script>
+
+<!-- ===============================
+     THINKING & REASONING (Level-4)
+     =============================== -->
 <script src="core/ReadingMode.js"></script>
+<script src="reasoning/ReasoningEngine.js"></script>
 
+<!-- ===============================
+     RESPONSE (Answer बोलने से पहले)
+     =============================== -->
+<script src="response/ResponseEngine.js"></script>
 
-
-<!-- ===== CONTROL ===== -->
-<script src="core/LearningBridge.js"></script>
+<!-- ===============================
+     CONTROL / ADMIN
+     =============================== -->
 <script src="core/AdminControl.js"></script>
 
-<!-- ===== VOICE (LAST) ===== -->
-<script src="voice/tts.js"></script>
-<script src="voice/stt.js"></script>
-  
-  <!-- ===== REAL DIAGNOSTIC ENGINE ===== -->
+<!-- ===============================
+     DIAGNOSTICS (सबसे अंत में)
+     =============================== -->
 <script src="diagnostics/anjali_real_diagnostic.js"></script>
 <script src="diagnostics/anjali_diagnostic_spec.js"></script>
 <script src="diagnostics/anjali_diagnostic_weights.js"></script>
 <script src="diagnostics/anjali_diagnostic_score.js"></script>
-<script>
 /* ==============================
    STABLE CONVERSATION + EMOTION
    ============================== */
