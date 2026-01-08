@@ -1,18 +1,25 @@
 /* ==========================================================
-   KnowledgeAnswerEngine — Level-4 / Version-4.x
-   PURPOSE:
-   Retrieve factual knowledge relevant to a user query
-   from local knowledge stores (mobile-browser safe).
+   KnowledgeAnswerEngine — Level-4 / Version-4.x (FINAL)
+   ROLE:
+   - IndexedDB आधारित KnowledgeBase से प्रश्न–उत्तर पढ़ना
+   - वास्तविक matching + scoring
+   - मोबाइल ब्राउज़र सुरक्षित (offline)
+   - “उत्तर देने में कठिनाई” केवल अंतिम स्थिति में
    ========================================================== */
 
-(function () {
+(function (window) {
   "use strict";
+
+  if (!window.KnowledgeBase) {
+    console.error("KnowledgeAnswerEngine: KnowledgeBase missing");
+    return;
+  }
 
   /* ===============================
      INTERNAL STATE
      =============================== */
   let initialized = false;
-  let knowledgeIndex = []; // normalized searchable index
+  let CACHE = [];
   const ERROR_LOG = [];
 
   /* ===============================
@@ -37,7 +44,7 @@
   function normalize(text) {
     return String(text || "")
       .toLowerCase()
-      .replace(/[^\p{L}\p{N}\s]/gu, " ")
+      .replace(/[^\u0900-\u097F\s]/g, " ")
       .replace(/\s+/g, " ")
       .trim();
   }
@@ -47,85 +54,75 @@
   }
 
   /* ===============================
-     LOAD KNOWLEDGE (REAL SOURCE)
+     LOAD KNOWLEDGE (INDEXEDDB)
      =============================== */
-  function loadKnowledge() {
+  async function loadKnowledge() {
     if (initialized) return;
-
     initialized = true;
 
-    /* Priority 1: LongTermMemory (dynamic knowledge) */
-    if (window.LongTermMemory && typeof window.LongTermMemory.dump === "function") {
-      safe(() => {
-        const records = window.LongTermMemory.dump();
-        records.forEach(r => {
-          if (r && r.content) {
-            knowledgeIndex.push({
-              source: r.source || "LongTermMemory",
-              text: r.content,
-              tokens: tokenize(r.content)
-            });
-          }
-        });
-      }, "LOAD_LTM");
-    }
+    await window.KnowledgeBase.init();
 
-    /* Priority 2: Static KnowledgeBase (articles) */
-    if (window.KnowledgeBase && Array.isArray(window.KnowledgeBase.articles)) {
-      safe(() => {
-        window.KnowledgeBase.articles.forEach(article => {
-          if (article && article.text) {
-            knowledgeIndex.push({
-              source: article.title || "Article",
-              text: article.text,
-              tokens: tokenize(article.text)
-            });
-          }
+    const records = await window.KnowledgeBase.getAll();
+    if (!Array.isArray(records)) return;
+
+    records.forEach(r => {
+      if (r && r.question && r.answer) {
+        CACHE.push({
+          question: r.question,
+          answer: r.answer,
+          qTokens: tokenize(r.question)
         });
-      }, "LOAD_KB");
-    }
+      }
+    });
   }
 
   /* ===============================
-     MATCHING LOGIC (REAL)
+     MATCH SCORING (REAL)
      =============================== */
   function scoreMatch(queryTokens, entryTokens) {
-    let hits = 0;
+    let hit = 0;
     queryTokens.forEach(t => {
-      if (entryTokens.includes(t)) hits++;
+      if (entryTokens.includes(t)) hit++;
     });
-    return hits / Math.max(queryTokens.length, 1);
+    return hit / Math.max(queryTokens.length, 1);
   }
 
   /* ===============================
-     MAIN RETRIEVAL FUNCTION
+     MAIN ANSWER FUNCTION
      =============================== */
-  function retrieve(query) {
-    loadKnowledge();
+  async function answer(questionText) {
+    if (!questionText || typeof questionText !== "string") {
+      return "मैं प्रश्न समझ नहीं पाई।";
+    }
 
-    const qTokens = tokenize(query);
-    if (!qTokens.length || !knowledgeIndex.length) return null;
+    await loadKnowledge();
+
+    if (!CACHE.length) {
+      return "मेरे ज्ञान में अभी कोई प्रश्न सुरक्षित नहीं है।";
+    }
+
+    const qTokens = tokenize(questionText);
+    if (!qTokens.length) {
+      return "कृपया प्रश्न थोड़ा स्पष्ट करें।";
+    }
 
     let best = null;
     let bestScore = 0;
 
-    knowledgeIndex.forEach(entry => {
-      const score = scoreMatch(qTokens, entry.tokens);
+    CACHE.forEach(entry => {
+      const score = scoreMatch(qTokens, entry.qTokens);
       if (score > bestScore) {
         bestScore = score;
         best = entry;
       }
     });
 
+    /* ===== HONEST THRESHOLD ===== */
     if (!best || bestScore < 0.15) {
-      return null; // honest: no sufficient knowledge
+      return "इस प्रश्न का उत्तर मेरे ज्ञान में अभी उपलब्ध नहीं है।";
     }
 
-    return {
-      source: best.source,
-      content: best.text,
-      relevance: Number(bestScore.toFixed(2))
-    };
+    return best.answer;
   }
 
   /* ===============================
@@ -134,22 +131,26 @@
   function getStatus() {
     return {
       initialized,
-      entriesIndexed: knowledgeIndex.length,
+      cachedQA: CACHE.length,
       errorCount: ERROR_LOG.length,
       recentErrors: ERROR_LOG.slice(-3),
       level: "4.x",
-      role: "knowledge-retrieval"
+      role: "answer-engine"
     };
   }
 
   /* ===============================
-     GLOBAL EXPOSURE
+     GLOBAL EXPOSE
      =============================== */
-  window.KnowledgeAnswerEngine = Object.freeze({
-    retrieve,
-    getStatus,
-    level: "4.x",
-    mode: "operational"
+  Object.defineProperty(window, "KnowledgeAnswerEngine", {
+    value: Object.freeze({
+      answer,
+      getStatus,
+      level: "4.x",
+      mode: "final-operational"
+    }),
+    writable: false,
+    configurable: false
   });
 
-})();
+})(window);
