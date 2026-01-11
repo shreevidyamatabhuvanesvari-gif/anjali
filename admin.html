@@ -91,35 +91,7 @@ A: दूसरा उत्तर
 </div>
         <button class="btn secondary" id="viewLearnBtn">सीखा हुआ देखें</button>
 
-<!-- ===================================================
-     SCRIPT SECTION (ORDER IS FINAL & FUTURE-SAFE)
-     =================================================== -->
 
-<!-- Core -->
-<script src="core/AnjaliCore.js"></script>
-
-<!-- Storage / Learning -->
-<script src="learning/KnowledgeBase.js"></script>
-  
-  <!-- 🧠 CONTEXT MEMORY (यहाँ) -->
-<script src="core/ContextMemory.js"></script>
-
-<!-- 🧠 REASONING ENGINE -->
-<script src="core/ReasoningEngine.js"></script>
-<script src="learning/ExperienceMemory.js"></script>
-
-<!-- Bridge / Control (Future use) -->
-<script src="core/LearningBridge.js"></script>
-<script src="core/AdminControl.js"></script>
-
-<!-- Admin Tools (Future expansion) -->
-<script src="admin/admin_learning_view.js"></script>
-  <script src="admin/admin_learning_ui.js" defer></script>
-<script src="admin/admin_bulk_loader.js"></script>
-
-<!-- Voice (No calls from Admin, but loaded safely) -->
-<script src="voice/tts.js"></script>
-<script src="voice/stt.js"></script>
 
 <!-- ================= SAVE LOGIC ================= -->
 <script>
@@ -136,7 +108,23 @@ async function saveSingle(){
     msg.textContent="✔️ प्रश्न–उत्तर सफलतापूर्वक सेव हुआ";
     q.value=""; a.value=""; t.value="";
   }catch(e){
-    msg.style.color="#ff9f9f";
+    msg.style.color="#f<!-- SCRIPTS -->
+<script src="core/AnjaliCore.js"></script>
+<script src="voice/tts.js"></script>
+<script src="voice/stt.js"></script>
+<script src="voice/STT_LongListening.js"></script>
+<script src="learning/KnowledgeBase.js"></script>
+<script src="learning/ExperienceMemory.js"></script>
+<script src="core/ContextMemory.js"></script>
+<script src="answer/KnowledgeAnswerEngine.js"></script>
+<script src="reasoning/ReasoningEngine.js"></script>
+<script src="response/ResponseEngine.js"></script>
+<script src="presence/AnjaliPresence.js"></script>
+<script src="diagnostics/anjali_real_diagnostic.js"></script>
+<script src="diagnostics/anjali_diagnostic_spec.js"></script>
+<script src="diagnostics/anjali_diagnostic_weights.js"></script>
+<script src="diagnostics/anjali_diagnostic_score.js"></script>f9f9f";
+  
     msg.textContent="❌ सेव नहीं हुआ";
   }
 }
