@@ -106,58 +106,34 @@
       🔍 Diagnostic
     </button>
   </div>
+  <script>
+  // Admin Panel खोलने के लिए
+  document.getElementById("adminBtn").onclick = () => {
+    window.open("admin.html", "_blank");
+  };
+
+  // System Status Page
+  function openSystemStatus() {
+    window.open("anjali_system_status.html", "_blank");
+  }
+
+  // Diagnostic Page
+  function openDiagnosticPanel() {
+    window.open("anjali_system_diagnostic.html", "_blank");
+  }
+
+  // Start Button → Admin Brain को Signal
+  document.getElementById("startBtn").onclick = () => {
+    // भविष्य में postMessage bridge यहीं बनेगा
+    alert("Anjali Brain admin.html में सक्रिय है");
+  };
+  </script>
 
 </main>
 
-<!-- ===============================
-     CORE (सबसे पहले)
-     =============================== -->
-<script src="core/AnjaliCore.js"></script>
 
-<!-- ===============================
-     MEMORY / KNOWLEDGE
-     =============================== -->
-<script src="learning/KnowledgeBase.js"></script>
-<script src="learning/ExperienceMemory.js"></script>
-<script src="core/ContextMemory.js"></script>
-
-<!-- ===============================
-     KNOWLEDGE ANSWER RETRIEVAL
-     =============================== -->
-<script src="answer/KnowledgeAnswerEngine.js"></script>
-<script src="answer/KnowledgeBridge.js"></script>
-
-<!-- ===============================
-     THINKING & REASONING (Level-4)
-     =============================== -->
-<script src="core/ReadingMode.js"></script>
-<script src="reasoning/ReasoningEngine.js"></script>
-
-<!-- ===============================
-     RESPONSE ENGINE
-     =============================== -->
-<script src="response/ResponseEngine.js"></script>
-
-<!-- ===============================
-     CONTROL / ADMIN
-     =============================== -->
-<script src="core/AdminControl.js"></script>
-
-  <!-- ===============================
-     VOICE SYSTEM
-     =============================== -->
-<script src="voice/tts.js"></script>
-<script src="voice/stt.js"></script>
-<script src="voice/STT_LongListening.js"></script>
   
 
-<!-- ===============================
-     DIAGNOSTICS (सबसे अंत में)
-     =============================== -->
-<script src="diagnostics/anjali_real_diagnostic.js"></script>
-<script src="diagnostics/anjali_diagnostic_spec.js"></script>
-<script src="diagnostics/anjali_diagnostic_weights.js"></script>
-<script src="diagnostics/anjali_diagnostic_score.js"></script>
 
 
 </script>
