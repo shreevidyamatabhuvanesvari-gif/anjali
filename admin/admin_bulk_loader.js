@@ -75,7 +75,8 @@ for (const block of blocks) {
           tags: t ? t[1].split(",").map(x => x.trim()) : []
         });
 
-        count++;
+        saved++;
+      });
 
       } catch (innerErr) {
         console.warn("⚠️ इस block को छोड़ दिया:", block);
