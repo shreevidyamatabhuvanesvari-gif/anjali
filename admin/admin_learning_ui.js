@@ -3,7 +3,7 @@
    Role: Admin Single Learning (FINAL, STABLE)
    ========================================================= */
 
-(function () {
+document.addEventListener("DOMContentLoaded", function () {
   "use strict";
 
   if (!window.KnowledgeBase) {
@@ -25,6 +25,8 @@
   cancelBtn.onclick = () => {
     modal.style.display = "none";
   };
+
+});
 
   // ✅ SAVE (निर्णायक)
   saveBtn.onclick = async () => {
