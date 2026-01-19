@@ -168,10 +168,24 @@ A: दूसरा उत्तर
 <script src="admin/admin_bulk_loader.js"></script>
 <script src="admin/admin_learning_ui.js"></script>
 <script src="admin/admin_learning_view.js"></script>
-  
 
+    <!-- ================= BRAIN BRIDGE ================= -->
+  <script>
+    window.addEventListener("message", async (event) => {
+      if (!event.data) return;
 
-</script>
+      if (event.data.type === "USER_SPEECH") {
+        const reply = await AnjaliCore.process(event.data.text);
+
+        event.source.postMessage({
+          type: "ANJALI_REPLY",
+          text: reply.text,
+          emotion: reply.emotion
+        }, "*");
+      }
+    });
+  </script>
+
   <!-- ================= SINGLE LEARNING BOX ================= -->
 <div style="
   max-width:600px;
