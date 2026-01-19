@@ -57,31 +57,46 @@ for (const block of blocks) {
     await KnowledgeBase.init();
 
     const raw = bulk.value.trim();
-    const blocks = raw.split(/\n\s*\n/);
+    if (!raw) {
+      msg.style.color = "#ff9f9f";
+      msg.textContent = "❌ इनपुट खाली है";
+      return;
+    }
+
+    // Windows + Android newline safe split
+    const blocks = raw.split(/\r?\n\s*\r?\n/);
 
     let count = 0;
 
     for (const block of blocks) {
-      try {
-        const q = block.match(/Q:\s*(.+)/i);
-        const a = block.match(/A:\s*(.+)/i);
-        const t = block.match(/TAGS:\s*(.+)/i);
+      const q = block.match(/Q:\s*(.+)/i);
+      const a = block.match(/A:\s*(.+)/i);
+      const t = block.match(/TAGS:\s*(.+)/i);
 
-        if (!q || !a) continue; // गलत block को skip
+      if (!q || !a) continue;
 
-        await KnowledgeBase.saveOne({
-          question: q[1].trim(),
-          answer: a[1].trim(),
-          tags: t ? t[1].split(",").map(x => x.trim()) : []
-        });
-
-        saved++;
+      // 🔴 CRITICAL FIX: sequential DB writes
+      await KnowledgeBase.saveOne({
+        question: q[1].trim(),
+        answer: a[1].trim(),
+        tags: t ? t[1].split(",").map(x => x.trim()) : []
       });
 
-      } catch (innerErr) {
-        console.warn("⚠️ इस block को छोड़ दिया:", block);
-      }
+      count++;
+
+      // DB को सांस लेने का समय
+      await new Promise(r => setTimeout(r, 50));
     }
+
+    msg.style.color = "#9fdf9f";
+    msg.textContent = `✔️ ${count} प्रश्न सेव हुए`;
+
+  } catch (e) {
+    console.error("Bulk save fatal error:", e);
+    msg.style.color = "#ff9f9f";
+    msg.textContent = "❌ Bulk सेव विफल";
+  }
+}
 
     msg.style.color = "#9fdf9f";
     msg.textContent = `✔️ ${count} प्रश्न सेव हुए`;
