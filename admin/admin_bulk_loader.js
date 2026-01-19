@@ -169,6 +169,7 @@ async function saveBulk() {
   } catch (e) {
     console.error(e);
     info.textContent = "❌ Bulk सेव विफल";
+     window.saveBulk = saveBulk;
   }
 }
 
