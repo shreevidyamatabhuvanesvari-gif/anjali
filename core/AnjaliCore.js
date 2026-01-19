@@ -136,4 +136,32 @@
     getStatus: status
   });
 
+   window.addEventListener("load", () => {
+  console.log("🧠 Anjali Booting...");
+
+  if(window.ContextMemory) ContextMemory.init();
+  console.log("✅ Memory Online");
+
+  if(window.KnowledgeBase) KnowledgeBase.init();
+  console.log("✅ Knowledge Ready");
+
+  if(window.ReasoningEngine) ReasoningEngine.init();
+  console.log("✅ Reasoning Active");
+
+  if(window.KnowledgeAnswerEngine) KnowledgeAnswerEngine.init();
+  console.log("✅ Answer Engine Ready");
+
+  if(window.ResponseEngine) ResponseEngine.init();
+  console.log("✅ Response Engine Ready");
+
+  if(window.TTS) TTS.init();
+  if(window.STT) STT.init();
+  console.log("✅ Voice Synced");
+
+  if(window.AnjaliPresence) AnjaliPresence.init();
+  console.log("✅ Presence Alive");
+
+  console.log("🚀 Anjali Fully Online");
+});
+
 })();
