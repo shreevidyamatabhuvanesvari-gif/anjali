@@ -58,25 +58,25 @@ button{
 </head>
 
 <body>
+
   <!-- ================= SINGLE LEARNING ================= -->
-<div class="panel">
-<h2>🧠 Single Learning (एक प्रश्न)</h2>
+  <div class="panel">
+    <h2>🧠 Single Learning (एक प्रश्न)</h2>
 
-<textarea id="q" placeholder="प्रश्न लिखें"></textarea>
-<textarea id="a" placeholder="उत्तर लिखें"></textarea>
-<input id="t" placeholder="टैग (कॉमा से अलग करें)">
+    <textarea id="q" placeholder="प्रश्न लिखें"></textarea>
+    <textarea id="a" placeholder="उत्तर लिखें"></textarea>
+    <input id="t" placeholder="टैग (कॉमा से अलग करें)">
 
-<button onclick="saveSingle()">सेव करें</button>
-<div id="msg1" class="msg"></div>
-</div>
+    <button onclick="saveSingle()">सेव करें</button>
+    <div id="msg1" class="msg"></div>
+  </div>
 
+  <!-- ================= BULK LEARNING ================= -->
+  <div class="panel">
+    <h2>📦 Bulk Learning (100+ / 1000+)</h2>
 
-<!-- ================= BULK LEARNING ================= -->
-<div class="panel">
-<h2>📦 Bulk Learning (100+ / 1000+)</h2>
-
-<textarea id="bulk" class="bulk"
-placeholder="Q: प्रश्न?
+    <textarea id="bulk" class="bulk"
+      placeholder="Q: प्रश्न?
 A: उत्तर
 TAGS: टैग1, टैग2
 
@@ -84,30 +84,43 @@ Q: दूसरा प्रश्न?
 A: दूसरा उत्तर
 
 (हर प्रश्न–उत्तर ब्लॉक के बीच एक खाली लाइन रखें)">
-</textarea>
-<button onclick="saveBulk()">Bulk सेव करें</button>
-<div id="msg2" class="msg"></div>
-</div>
-        <button class="btn secondary" id="viewLearnBtn">सीखा हुआ देखें</button>
+    </textarea>
+
+    <button onclick="saveBulk()">Bulk सेव करें</button>
+    <div id="msg2" class="msg"></div>
+  </div>
+
+  <button class="btn secondary" id="viewLearnBtn">सीखा हुआ देखें</button>
 
 
 
 <!-- ================= SAVE LOGIC ================= -->
-<script>
-async function saveSingle(){
-  const msg=document.getElementById("msg1");
-  try{
-    await KnowledgeBase.init();
-    await KnowledgeBase.saveOne({
-      question:q.value.trim(),
-      answer:a.value.trim(),
-      tags:t.value.split(",").map(x=>x.trim()).filter(Boolean)
-    });
-    msg.style.color="#9fdf9f";
-    msg.textContent="✔️ प्रश्न–उत्तर सफलतापूर्वक सेव हुआ";
-    q.value=""; a.value=""; t.value="";
-  }catch(e){
-    msg.style.color="#f<!-- SCRIPTS -->
+  <script>
+    async function saveSingle(){
+      const msg = document.getElementById("msg1");
+      const q = document.getElementById("q");
+      const a = document.getElementById("a");
+      const t = document.getElementById("t");
+
+      try {
+        await KnowledgeBase.init();
+        await KnowledgeBase.saveOne({
+          question: q.value.trim(),
+          answer: a.value.trim(),
+          tags: t.value.split(",").map(x=>x.trim()).filter(Boolean)
+        });
+
+        msg.style.color = "#9fdf9f";
+        msg.textContent = "✔️ प्रश्न–उत्तर सफलतापूर्वक सेव हुआ";
+        q.value = ""; a.value = ""; t.value = "";
+
+      } catch(e) {
+        msg.style.color = "#ff9f9f";
+        msg.textContent = "❌ सेव नहीं हुआ";
+      }
+    }
+  </script>
+  
   <!-- CORE -->
 <script src="core/AnjaliCore.js"></script>
 
