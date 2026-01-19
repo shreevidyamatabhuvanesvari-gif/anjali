@@ -72,7 +72,38 @@
     }
   </style>
 </head>
+<script>
+let brainWindow = null;
 
+// Admin Brain खोलना
+document.getElementById("adminBtn").onclick = () => {
+  brainWindow = window.open("admin.html", "_blank");
+};
+
+// Brain से आने वाले जवाब सुनना
+window.addEventListener("message", (event) => {
+  if (!event.data) return;
+
+  if (event.data.type === "ANJALI_REPLY") {
+    const text = event.data.text;
+    const emotion = event.data.emotion;
+
+    // स्क्रीन पर दिखाओ
+    const status = document.getElementById("appStatus");
+    if (status) status.textContent = "Anjali: " + text;
+
+    // आवाज़ से बोलवाओ
+    if (window.TTS) {
+      TTS.speak(text);
+    }
+
+    // Emotion update hook
+    if (window.updateEmotion) {
+      updateEmotion(emotion);
+    }
+  }
+});
+</script>
 <body>
 <main class="card">
 
