@@ -67,4 +67,14 @@
     }
   };
 
+   function openLearningModal(){
+  const modal = document.getElementById("learningModal");
+  if(modal) modal.style.display = "flex";
+}
+
+function closeLearningModal(){
+  const modal = document.getElementById("learningModal");
+  if(modal) modal.style.display = "none";
+}
+
 })();
