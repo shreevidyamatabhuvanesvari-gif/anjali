@@ -123,19 +123,22 @@
   }
 
   // Start Button → Admin Brain को Signal
+  <script>
+  document.getElementById("adminBtn").onclick = () => {
+    window.open("admin.html", "_blank");
+  };
+
+  function openSystemStatus() {
+    window.open("anjali_system_status.html", "_blank");
+  }
+
+  function openDiagnosticPanel() {
+    window.open("anjali_system_diagnostic.html", "_blank");
+  }
+
   document.getElementById("startBtn").onclick = () => {
-    // भविष्य में postMessage bridge यहीं बनेगा
     alert("Anjali Brain admin.html में सक्रिय है");
   };
-  </script>
-
-</main>
-
-
-  
-
-
-
 </script>
   
 <script>
