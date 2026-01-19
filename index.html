@@ -158,44 +158,7 @@
 <script src="diagnostics/anjali_diagnostic_spec.js"></script>
 <script src="diagnostics/anjali_diagnostic_weights.js"></script>
 <script src="diagnostics/anjali_diagnostic_score.js"></script>
-/* ==============================
-   STABLE CONVERSATION + EMOTION
-   ============================== */
 
-let audioUnlocked = false;
-let conversationActive = false;
-
-/* 🎭 Emotion UI Update */
-function updateEmotion(emotion){
-  const emo = document.getElementById("emotionStatus");
-  if(!emo) return;
-
-  const map = {
-    happy: "😊 प्रसन्न",
-    sad: "😔 उदास",
-    caring: "🌸 स्नेहपूर्ण",
-    thinking: "🤔 विचारशील",
-    neutral: "😌 शांत"
-  };
-  emo.textContent = "भाव: " + (map[emotion] || map.neutral);
-}
-
-/* ▶️ Start Conversation */
-function startConversation(){
-  const status = document.getElementById("appStatus");
-
-  if (window.TTS && !audioUnlocked) {
-    TTS.init();
-    audioUnlocked = true;
-  }
-
-  conversationActive = true;
-  status.textContent = "मैं सुन रही हूँ…";
-  updateEmotion("neutral");
-
-  if (window.STT) {
-    STT.start();
-  }
 
   /* 🔴 Diagnostic को सही समय पर, एक बार चलाना */
   if (window.runAnjaliDiagnostic && !window.__anjaliDiagnosticRan) {
