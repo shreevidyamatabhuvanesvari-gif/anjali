@@ -109,33 +109,53 @@ async function saveSingle(){
     q.value=""; a.value=""; t.value="";
   }catch(e){
     msg.style.color="#f<!-- SCRIPTS -->
-  <!-- CORE SYSTEM (सबसे पहले दिमाग) -->
+  <!-- CORE -->
 <script src="core/AnjaliCore.js"></script>
 
-<!-- MEMORY LAYER -->
+<!-- MEMORY -->
 <script src="core/ContextMemory.js"></script>
-<script src="learning/ExperienceMemory.js"></script>
 
-<!-- KNOWLEDGE LAYER -->
+<!-- CORE THINKING -->
+<script src="core/ReasoningEngine.js"></script>
+<script src="reasoning/ReasoningEngine.js"></script>
+
+<!-- KNOWLEDGE -->
 <script src="learning/KnowledgeBase.js"></script>
 
-<!-- INTELLIGENCE LAYER -->
-<script src="reasoning/ReasoningEngine.js"></script>
+<!-- ANSWER SYSTEM -->
+<script src="core/AnswerEngine.js"></script>
+<script src="answer/KnowledgeBridge.js"></script>
 <script src="answer/KnowledgeAnswerEngine.js"></script>
 
-<!-- RESPONSE LAYER -->
+<!-- RESPONSE -->
 <script src="response/ResponseEngine.js"></script>
 
-<!-- VOICE SYSTEM -->
+<!-- READING MODE -->
+<script src="core/ReadingMode.js"></script>
+
+<!-- VOICE -->
 <script src="voice/tts.js"></script>
 <script src="voice/stt.js"></script>
 <script src="voice/STT_LongListening.js"></script>
 
-<!-- DIAGNOSTIC SYSTEM (सबसे अंत में) -->
+<!-- PRESENCE -->
+<script src="presence/AnjaliPresence.js"></script>
+
+<!-- DIAGNOSTIC CORE -->
 <script src="diagnostics/anjali_diagnostic_spec.js"></script>
 <script src="diagnostics/anjali_diagnostic_weights.js"></script>
 <script src="diagnostics/anjali_diagnostic_score.js"></script>
+
+<!-- DIAGNOSTIC LINK -->
+<script src="diagnostics/anjali_diagnostic_bridge.js"></script>
+
+<!-- DIAGNOSTIC EXECUTOR -->
 <script src="diagnostics/anjali_real_diagnostic.js"></script>
+
+<!-- ADMIN CONTROL LAYER -->
+<script src="admin/admin_bulk_loader.js"></script>
+<script src="admin/admin_learning_ui.js"></script>
+<script src="admin/admin_learning_view.js"></script>
   
     msg.textContent="❌ सेव नहीं हुआ";
   }
