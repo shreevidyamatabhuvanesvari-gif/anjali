@@ -126,42 +126,50 @@ for (const block of blocks) {
     try {
       await KnowledgeBase.init();
 
-      // 🔑 DIRECT BULK WRITE (single transaction)
-      const db = await (async () => {
-        await KnowledgeBase.init();
-        return new Promise(res => {
-          const req = indexedDB.open("AnjaliKnowledgeDB", 1);
-          req.onsuccess = e => res(e.target.result);
-        });
-      })();
+      // ✅ PURE BULK WRITE VIA KnowledgeBase (Single-Save Pipe)
 
-      const tx = db.transaction("qa_store", "readwrite");
-      const store = tx.objectStore("qa_store");
+async function saveBulk() {
+  const info = document.getElementById("msg2");
+  const input = document.getElementById("bulk");
 
-      let saved = 0;
-      items.forEach(item => {
-        store.add({
-          question: item.question,
-          answer: item.answer,
-          subject: item.subject,
-          time: Date.now()
-        });
-        saved++;
+  try {
+    await KnowledgeBase.init();
+
+    const raw = input.value.trim();
+    if (!raw) {
+      info.textContent = "❌ इनपुट खाली है";
+      return;
+    }
+
+    // Android + Windows newline safe split
+    const blocks = raw.split(/\r?\n\s*\r?\n/);
+
+    let saved = 0;
+
+    for (const block of blocks) {
+      const q = block.match(/Q:\s*(.+)/i);
+      const a = block.match(/A:\s*(.+)/i);
+      const t = block.match(/TAGS:\s*(.+)/i);
+
+      if (!q || !a) continue;
+
+      // 🔑 यही वही रास्ता है जिससे Single Save चलता है
+      await KnowledgeBase.saveOne({
+        question: q[1].trim(),
+        answer: a[1].trim(),
+        tags: t ? t[1].split(",").map(x => x.trim()) : []
       });
 
-      tx.oncomplete = () => {
-        info.textContent = `✅ सफलतापूर्वक सेव हुए प्रश्न: ${saved}`;
-        input.value = "";
-      };
-
-      tx.onerror = () => {
-        info.textContent = "❌ Bulk सेव विफल";
-      };
-
-    } catch (e) {
-      console.error(e);
-      info.textContent = "❌ Bulk सेव विफल";
+      saved++;
     }
-  };
+
+    info.textContent = `✅ सफलतापूर्वक सेव हुए प्रश्न: ${saved}`;
+    input.value = "";
+
+  } catch (e) {
+    console.error(e);
+    info.textContent = "❌ Bulk सेव विफल";
+  }
+}
 
 })();
