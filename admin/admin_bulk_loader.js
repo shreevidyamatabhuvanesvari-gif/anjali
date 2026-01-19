@@ -32,20 +32,69 @@
     }
 
     const blocks = raw.split(/\n\s*\n/);
-    let items = [];
+let count = 0;
+
+for (const block of blocks) {
+  const q = block.match(/Q:\s*(.+)/i);
+  const a = block.match(/A:\s*(.+)/i);
+  const t = block.match(/TAGS:\s*(.+)/i);
+
+  if (q && a) {
+    await KnowledgeBase.saveOne({
+      question: q[1].trim(),
+      answer: a[1].trim(),
+      tags: t ? t[1].split(",").map(x => x.trim()) : []
+    });
+    count++;
+  }
+}
+
+    async function saveBulk() {
+  const msg = document.getElementById("msg2");
+  const bulk = document.getElementById("bulk");
+
+  if (!bulk || !msg) {
+    console.error("bulk या msg2 element नहीं मिला");
+    return;
+  }
+
+  try {
+    await KnowledgeBase.init();
+
+    const raw = bulk.value.trim();
+    if (!raw) {
+      msg.style.color = "#ff9f9f";
+      msg.textContent = "❌ इनपुट खाली है";
+      return;
+    }
+
+    const blocks = raw.split(/\n\s*\n/);
+    let count = 0;
 
     for (const block of blocks) {
       const q = block.match(/Q:\s*(.+)/i);
       const a = block.match(/A:\s*(.+)/i);
+      const t = block.match(/TAGS:\s*(.+)/i);
 
       if (q && a) {
-        items.push({
+        await KnowledgeBase.saveOne({
           question: q[1].trim(),
           answer: a[1].trim(),
-          subject
+          tags: t ? t[1].split(",").map(x => x.trim()) : []
         });
+        count++;
       }
     }
+
+    msg.style.color = "#9fdf9f";
+    msg.textContent = `✔️ ${count} प्रश्न सेव हुए`;
+
+  } catch (e) {
+    console.error("Bulk save error:", e);
+    msg.style.color = "#ff9f9f";
+    msg.textContent = "❌ Bulk सेव विफल";
+  }
+}
 
     if (!items.length) {
       info.textContent = "कोई वैध प्रश्नोत्तर नहीं मिला।";
