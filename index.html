@@ -160,36 +160,6 @@
 <script src="diagnostics/anjali_diagnostic_score.js"></script>
 
 
-  /* 🔴 Diagnostic को सही समय पर, एक बार चलाना */
-  if (window.runAnjaliDiagnostic && !window.__anjaliDiagnosticRan) {
-    window.__anjaliDiagnosticRan = true;
-
-    setTimeout(() => {
-      window.runAnjaliDiagnostic();
-    }, 300);
-  }
-}
-
-/* 🔁 Called by AnswerEngine */
-window.onAnjaliAnswered = function (emotion){
-  if (!conversationActive) return;
-
-  updateEmotion(emotion || "neutral");
-
-  const status = document.getElementById("appStatus");
-  status.textContent = "मैं सुन रही हूँ…";
-
-  setTimeout(() => {
-    if (window.STT && conversationActive) {
-      STT.start();
-    }
-  }, 500);
-};
-
-/* 🔘 Button Bindings */
-document.getElementById("startBtn").onclick = startConversation;
-document.getElementById("adminBtn").onclick = ()=>location.href="admin.html";
-
 /* 🔗 Navigation */
 function openSystemStatus(){
   location.href = "anjali_system_status.html";
