@@ -153,14 +153,38 @@
 
       lastDecision = finalDecision;
 
-      /* === OUTPUT DISPATCH === */
-      if (window.AnjaliCore && window.AnjaliCore.isActive()) {
-        safeExecute(() => {
-          if (window.ResponseEngine) {
-  window.ResponseEngine.onDecision(finalDecision);
-}
-        }, "CORE_OUTPUT");
+      /* === OUTPUT DISPATCH (FINALIZED) === */
+if (window.AnjaliCore && window.AnjaliCore.isActive()) {
+  safeExecute(() => {
+    if (window.ResponseEngine) {
+
+      /* ===============================
+         MORAL EMOTION EVALUATION (LAYER 3)
+         =============================== */
+      let ethicalReport = null;
+
+      if (window.ModuleEthicalEmotionEngine) {
+        ethicalReport = ModuleEthicalEmotionEngine.evaluate(
+          text,
+          { decision: finalDecision }
+        );
       }
+
+      /* ===============================
+         FINAL DECISION DISPATCH
+         =============================== */
+      window.ResponseEngine.onDecision(
+        finalDecision,
+        {
+          userText: text,
+          ethical: ethicalReport,
+          source: "reasoning-engine",
+          timestamp: Date.now()
+        }
+      );
+    }
+  }, "CORE_OUTPUT");
+}
 
       /* === EXPERIENCE PERSISTENCE === */
       persistEpisode({
