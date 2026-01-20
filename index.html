@@ -137,6 +137,9 @@ document.getElementById("speakBtn").onclick = () => {
     <button class="btn" id="startBtn">शुरू करें</button>
     <button id="speakBtn">🔊 Anjali बोले</button>
     <button class="btn secondary" id="adminBtn">Admin Panel</button>
+    <button id="talkBtn" class="btn primary">
+  🌸 अंजली से बात करें
+    </button>
   </div>
 
   <div class="footer">Foundation • Stage-1</div>
@@ -230,6 +233,12 @@ document.getElementById("startBtn").onclick = () => {
 alert("Anjali Brain admin.html में सक्रिय है");
 };
 </script>
+  
+  <script>
+  document.getElementById("talkBtn").onclick = function () {
+    window.location.href = "talk_to_anjali.html";
+  };
+  </script>
   
 <script>
 /* ===== FORCED REAL DIAGNOSTIC WRITE ===== */
