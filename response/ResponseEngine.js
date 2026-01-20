@@ -138,6 +138,63 @@
     }, "TTS_SPEAK");
   }
 
+   /* ======================================================
+   EMOTION-AWARE DECISION ENHANCER (NON-DESTRUCTIVE)
+   ====================================================== */
+function enhanceWithEmotion(decision, userText) {
+  try {
+    if (!userText || !window.ContextEmotionMapper) {
+      return decision; // fallback: no change
+    }
+
+    const emotionMap = ContextEmotionMapper.map(userText);
+    if (window.UserStateTracker) {
+      UserStateTracker.record(emotionMap);
+    }
+
+    const empathyProfile =
+      window.EmpathyTrigger?.getEmpathyProfile(
+        window.EmpathyTrigger?.shouldTrigger(emotionMap)
+      );
+
+    const respectProfile =
+      window.RespectTrigger?.getRespectProfile(
+        window.RespectTrigger?.shouldTrigger(emotionMap, userText)
+      );
+
+    const trustState = window.TrustDetector?.getTrustState?.();
+
+    let prefix = "";
+
+    // Respect has higher priority than empathy
+    if (respectProfile && respectProfile.mode !== "normal") {
+      if (respectProfile.mode === "respect-boundary") {
+        prefix = "सीमाओं के साथ स्पष्ट कहूँगी— ";
+      } else if (respectProfile.mode === "dignified") {
+        prefix = "गरिमा के साथ कहूँगी— ";
+      }
+    } else if (empathyProfile) {
+      if (empathyProfile.mode === "deep-empathy") {
+        prefix = "मैं आपकी बात पूरी संवेदना के साथ समझ रही हूँ। ";
+      } else if (empathyProfile.mode === "supportive") {
+        prefix = "मैं समझ सकती हूँ। ";
+      }
+    }
+
+    const finalText = prefix + decision.text;
+
+    return {
+      ...decision,
+      text: finalText,
+      emotion: emotionMap?.emotion || "neutral",
+      trust: trustState || { level: "unknown", value: 0.5 }
+    };
+  } catch (e) {
+    recordError("EMOTION_ENHANCER", e);
+    return decision; // absolute safety
+  }
+}
+
   /* ======================================================
      PUBLIC ENTRY (FROM REASONING)
      ====================================================== */
