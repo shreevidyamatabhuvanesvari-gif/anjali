@@ -103,6 +103,19 @@ window.addEventListener("message", (event) => {
     }
   }
 });
+
+  // 🔊 Anjali बोले बटन
+document.getElementById("speakBtn").onclick = () => {
+  if (!lastAnjaliReply) {
+    alert("Anjali ने अभी कुछ कहा नहीं है");
+    return;
+  }
+
+  if (window.TTS) {
+    TTS.speak(lastAnjaliReply);
+  }
+};
+  
 </script>
 <body>
 <main class="card">
@@ -122,6 +135,7 @@ window.addEventListener("message", (event) => {
 
   <div class="actions">
     <button class="btn" id="startBtn">शुरू करें</button>
+    <button id="speakBtn">🔊 Anjali बोले</button>
     <button class="btn secondary" id="adminBtn">Admin Panel</button>
   </div>
 
