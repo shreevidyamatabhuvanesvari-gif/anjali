@@ -195,6 +195,30 @@ function enhanceWithEmotion(decision, userText) {
   }
 }
 
+   /* ======================================================
+   ETHICAL FRAMING HELPER
+   ====================================================== */
+function applyEthicalFraming(text, report) {
+  if (!report || !report.flags) return text;
+
+  let prefix = "";
+
+  if (report.flags.includes("self-harm-risk")) {
+    prefix = "मैं आपकी सुरक्षा को प्राथमिकता देते हुए कहना चाहूँगी— ";
+  } else if (report.flags.includes("violence-risk")) {
+    prefix = "इस विषय पर शांत और अहिंसक दृष्टि ज़रूरी है। ";
+  } else if (report.flags.includes("dehumanization-risk")) {
+    prefix = "हर व्यक्ति की गरिमा का सम्मान आवश्यक है। ";
+  } else if (report.flags.includes("authority-abuse-risk")) {
+    prefix = "शक्ति का प्रयोग हमेशा जिम्मेदारी के साथ होना चाहिए। ";
+  } else if (report.flags.includes("absolute-claim")) {
+    prefix = "उपलब्ध जानकारी के आधार पर, सावधानी से कहूँ तो— ";
+  }
+
+  return prefix + text;
+}
+
+   
   /* ======================================================
      PUBLIC ENTRY (FROM REASONING)
      ====================================================== */
@@ -204,7 +228,35 @@ function enhanceWithEmotion(decision, userText) {
     return;
   }
 
-  const enhanced = enhanceWithEmotion(decision, userText);
+  let ethicalReport = null;
+
+  /* ===============================
+     MORAL EMOTION GATE (LAYER 3)
+     =============================== */
+  if (window.ModuleEthicalEmotionEngine && userText) {
+    ethicalReport =
+      ModuleEthicalEmotionEngine.evaluate(userText, {
+        decisionText: decision.text
+      });
+  }
+
+  /* ===============================
+     ETHICAL ADJUSTMENT (NON-BLOCKING)
+     =============================== */
+  let finalDecision = decision;
+
+  if (ethicalReport && ethicalReport.flags.length) {
+    finalDecision = {
+      ...decision,
+      text: applyEthicalFraming(
+        decision.text,
+        ethicalReport
+      ),
+      ethical: ethicalReport
+    };
+  }
+
+  const enhanced = enhanceWithEmotion(finalDecision, userText);
   enqueueDecision(enhanced);
 }
 
