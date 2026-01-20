@@ -80,24 +80,31 @@
   }
 
   /* ===============================
-     SNAPSHOT
-     =============================== */
+   SNAPSHOT
+   =============================== */
 
-  function snapshot() {
-    return {
-      trustScore: Number(trustScore.toFixed(2)),
-      level: classify(trustScore),
-      recentEvents: trustEvents.slice(-5),
-      lastInteractionAt
-    };
-  }
+function snapshot() {
+  const level = classify(trustScore);
 
-  function classify(score) {
-    if (score > 0.75) return "high-trust";
-    if (score > 0.45) return "moderate-trust";
-    if (score > 0.2)  return "low-trust";
-    return "guarded";
-  }
+  return {
+    trustScore: Number(trustScore.toFixed(2)),
+    level,
+    recentEvents: trustEvents.slice(-5),
+    lastInteractionAt,
+
+    /* 🔑 LAYER-4 CONTROL SIGNALS */
+    allowKnowledge: trustScore > 0.25,
+    allowPersonalTone: trustScore > 0.4,
+    requireCaution: trustScore < 0.2
+  };
+}
+
+function classify(score) {
+  if (score > 0.75) return "high-trust";
+  if (score > 0.45) return "moderate-trust";
+  if (score > 0.2)  return "low-trust";
+  return "guarded";
+}
 
   /* ===============================
      SAFETY RESET
