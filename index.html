@@ -150,33 +150,27 @@ document.getElementById("speakBtn").onclick = () => {
 <script src="learning/KnowledgeBase.js"></script>
 <!-- ANSWER SYSTEM -->
 <script src="core/AnswerEngine.js"></script>
-
 <script src="answer/KnowledgeAnswerEngine.js"></script>
+  
 <!-- EMOTION : PERCEPTION -->
+<!-- LAYER 1 -->
 <script src="emotion/EmotionPerceptionEngine.js"></script>
-
-<!-- EMOTION : TONE -->
 <script src="emotion/ToneAnalysisEngine.js"></script>
-
-  <!-- EMOTION : CONTEXT MAPPING -->
 <script src="emotion/ContextEmotionMapper.js"></script>
-
-  <!-- EMOTION : USER STATE TRACKER -->
 <script src="emotion/UserStateTracker.js"></script>
-
-  <!-- EMOTION : EMPATHY TRIGGER -->
 <script src="emotion/EmpathyTrigger.js"></script>
-
-  <!-- EMOTION : TRUST DETECTOR -->
+<script src="emotion/RespectTrigger.js"></script>
 <script src="emotion/TrustDetector.js"></script>
 
-  <!-- RESPONSE -->
-<script src="response/ResponseEngine.js"></script>
+<!-- LAYER 2 -->
+<script src="emotion/EmotionalStateCore.js"></script>
+<script src="emotion/MoodStabilizer.js"></script>
+<script src="emotion/EmotionalMemory.js"></script>
+<script src="emotion/EmotionalDriftController.js"></script>
+<script src="emotion/CompassionIndex.js"></script>
 
-  <script src="answer/KnowledgeBridge.js"></script>
-  
-<!-- READING MODE -->
-<script src="core/ReadingMode.js"></script>
+<!-- BRIDGE -->
+<script src="emotion/EmotionPipelineBridge.js"></script>
 
 <!-- VOICE -->
 <script src="voice/tts.js"></script>
