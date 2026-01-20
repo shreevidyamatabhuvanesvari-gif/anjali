@@ -53,27 +53,29 @@
     return snapshot();
   }
 
-  /* ===============================
-     RESPONSE SHAPING
-     =============================== */
-
   function shapeText(text, state = {}) {
-    if (!text || typeof text !== "string") return text;
+  if (!text || typeof text !== "string") return text;
 
-    let prefix = "";
-
-    if (careLevel > 0.7) {
-      prefix = "मैं आपकी बात समझती हूँ। ";
-    } else if (careLevel > 0.5) {
-      prefix = "मैं समझने की कोशिश कर रही हूँ। ";
-    }
-
-    if (state.ethical && state.ethical.flags?.length) {
-      prefix += "आपकी भलाई को ध्यान में रखते हुए— ";
-    }
-
-    return prefix + text;
+  /* 🔑 IMPORTANT:
+     Knowledge answer को कभी suppress मत करो */
+  if (state.hasKnowledge === true) {
+    return text;
   }
+
+  let prefix = "";
+
+  if (careLevel > 0.7) {
+    prefix = "मैं आपकी बात समझती हूँ। ";
+  } else if (careLevel > 0.5) {
+    prefix = "मैं समझने की कोशिश कर रही हूँ। ";
+  }
+
+  if (state.ethical && state.ethical.flags?.length) {
+    prefix += "आपकी भलाई को ध्यान में रखते हुए— ";
+  }
+
+  return prefix + text;
+}
 
   /* ===============================
      TIME DECAY
