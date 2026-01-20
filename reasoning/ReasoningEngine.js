@@ -148,10 +148,39 @@
       const memory = fetchMemoryContext(text);
       const emotion = analyzeEmotion(text);
 
-      const baseDecision = computeDecision(text, memory, emotion);
-      const finalDecision = metaCorrect(baseDecision);
+      const memory = fetchMemoryContext(text);
+const emotion = analyzeEmotion(text);
 
-      lastDecision = finalDecision;
+// ===== KNOWLEDGE RETRIEVAL =====
+let knowledge = null;
+if (
+  window.KnowledgeAnswerEngine &&
+  typeof KnowledgeAnswerEngine.retrieve === "function"
+) {
+  knowledge = KnowledgeAnswerEngine.retrieve(text);
+}
+
+// ===== ANSWER SELECTION =====
+let answerText = "";
+let confidence = 0.4;
+
+if (knowledge && knowledge.content) {
+  answerText = knowledge.content;
+  confidence = Math.min(0.9, knowledge.relevance || 0.7);
+} else {
+  answerText = "मैं अभी इस प्रश्न का उत्तर सीख रही हूँ।";
+  confidence = 0.35;
+}
+
+// ===== FINAL DECISION OBJECT =====
+const finalDecision = {
+  text: answerText,
+  confidence,
+  source: knowledge ? knowledge.source : "fallback",
+  decidedAt: Date.now()
+};
+
+lastDecision = finalDecision;
 
       /* === OUTPUT DISPATCH (FINALIZED) === */
 if (window.AnjaliCore && window.AnjaliCore.isActive()) {
