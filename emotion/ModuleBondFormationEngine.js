@@ -76,24 +76,31 @@
   }
 
   /* ===============================
-     SNAPSHOT
-     =============================== */
+   SNAPSHOT
+   =============================== */
 
-  function snapshot() {
-    return {
-      bondScore: Number(bondScore.toFixed(2)),
-      interactionCount,
-      level: classifyBond(bondScore),
-      lastInteractionAt
-    };
-  }
+function snapshot() {
+  const level = classifyBond(bondScore);
 
-  function classifyBond(score) {
-    if (score > 0.75) return "deep-trust";
-    if (score > 0.45) return "warm-connection";
-    if (score > 0.2)  return "familiar";
-    return "neutral";
-  }
+  return {
+    bondScore: Number(bondScore.toFixed(2)),
+    interactionCount,
+    level,
+    lastInteractionAt,
+
+    /* ===== LAYER-4 CONTROL SIGNALS ===== */
+    allowRelationalTone: bondScore > 0.25,
+    allowCareResponse: bondScore > 0.35,
+    suppressKnowledge: bondScore < 0.15
+  };
+}
+
+function classifyBond(score) {
+  if (score > 0.75) return "deep-trust";
+  if (score > 0.45) return "warm-connection";
+  if (score > 0.2)  return "familiar";
+  return "neutral";
+}
 
   /* ===============================
      UTILITIES
