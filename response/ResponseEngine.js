@@ -198,13 +198,15 @@ function enhanceWithEmotion(decision, userText) {
   /* ======================================================
      PUBLIC ENTRY (FROM REASONING)
      ====================================================== */
-  function onDecision(decision) {
-    if (!validateDecision(decision)) {
-      recordError("INVALID_DECISION", decision);
-      return;
-    }
-    enqueueDecision(decision);
+  function onDecision(decision, userText) {
+  if (!validateDecision(decision)) {
+    recordError("INVALID_DECISION", decision);
+    return;
   }
+
+  const enhanced = enhanceWithEmotion(decision, userText);
+  enqueueDecision(enhanced);
+}
 
   /* ======================================================
      DIAGNOSTICS (REAL STATE)
