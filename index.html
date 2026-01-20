@@ -146,33 +146,32 @@ document.getElementById("speakBtn").onclick = () => {
 
   <!-- CORE -->
 <script src="core/AnjaliCore.js"></script>
-
-<!-- MEMORY -->
 <script src="core/ContextMemory.js"></script>
+
+<!-- THINKING -->
+<script src="reasoning/ReasoningEngine.js"></script>
+
 <!-- KNOWLEDGE -->
 <script src="learning/KnowledgeBase.js"></script>
-<!-- ANSWER SYSTEM -->
-<script src="core/AnswerEngine.js"></script>
 <script src="answer/KnowledgeAnswerEngine.js"></script>
-  
-<!-- EMOTION : PERCEPTION -->
-<!-- LAYER 1 -->
+
+<!-- EMOTION L1 -->
 <script src="emotion/EmotionPerceptionEngine.js"></script>
 <script src="emotion/ToneAnalysisEngine.js"></script>
 <script src="emotion/ContextEmotionMapper.js"></script>
 <script src="emotion/UserStateTracker.js"></script>
 <script src="emotion/EmpathyTrigger.js"></script>
-<script src="emotion/RespectTrigger.js"></script>
 <script src="emotion/TrustDetector.js"></script>
 
-<!-- LAYER 2 -->
+<!-- EMOTION L2 -->
 <script src="emotion/EmotionalStateCore.js"></script>
 <script src="emotion/MoodStabilizer.js"></script>
 <script src="emotion/EmotionalMemory.js"></script>
 <script src="emotion/EmotionalDriftController.js"></script>
 <script src="emotion/CompassionIndex.js"></script>
+<script src="emotion/EmotionPipelineBridge.js"></script>
 
-  <!-- LAYER 3 : MORAL EMOTION -->
+<!-- EMOTION L3 -->
 <script src="emotion/ModuleEthicalEmotionEngine.js"></script>
 <script src="emotion/JusticeSensitivity.js"></script>
 <script src="emotion/HarmAversionCore.js"></script>
@@ -183,9 +182,6 @@ document.getElementById("speakBtn").onclick = () => {
 
 <!-- RESPONSE -->
 <script src="response/ResponseEngine.js"></script>
-
-<!-- BRIDGE -->
-<script src="emotion/EmotionPipelineBridge.js"></script>
 
 <!-- VOICE -->
 <script src="voice/tts.js"></script>
