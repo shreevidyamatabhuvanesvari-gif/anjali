@@ -1,32 +1,56 @@
 /* ==========================================================
-   Service Worker — v4
+   Service Worker — Anjali v4
    ROLE:
-   Offline support + performance cache
-   SAFE: Does NOT interfere with reasoning or answers
+   Offline support, cache stability, fast startup
+   WITHOUT interfering with voice, learning, or reasoning.
    ========================================================== */
 
-const CACHE_VERSION = "anjali-cache-v4";
-const CORE_ASSETS = [
-  "/", 
+"use strict";
+
+/* ===============================
+   VERSIONING
+   =============================== */
+const SW_VERSION = "anjali-sw-v4";
+const CACHE_STATIC = `anjali-static-${SW_VERSION}`;
+const CACHE_DYNAMIC = `anjali-dynamic-${SW_VERSION}`;
+
+/* ===============================
+   FILES SAFE TO CACHE (APP SHELL)
+   =============================== */
+const STATIC_ASSETS = [
+  "/",
   "/index.html",
   "/admin.html",
+  "/talk_to_anjali.html",
+  "/manifest.json",
 
   // Core
   "/core/AnjaliCore.js",
   "/core/ContextMemory.js",
 
-  // Reasoning & Knowledge
+  // Reasoning
   "/reasoning/ReasoningEngine.js",
+
+  // Knowledge
   "/learning/KnowledgeBase.js",
-  "/learning/ExperienceMemory.js",
   "/answer/KnowledgeAnswerEngine.js",
 
-  // Response & Voice
+  // Response
   "/response/ResponseEngine.js",
-  "/voice/stt.js",
-  "/voice/tts.js",
 
-  // UI / Assets
+  // Voice UI (logic only, not audio streams)
+  "/voice/tts.js",
+  "/voice/stt.js",
+  "/voice/STT_LongListening.js",
+
+  // Presence
+  "/presence/AnjaliPresence.js",
+
+  // Basic Emotion (safe)
+  "/emotion/EmotionPerceptionEngine.js",
+  "/emotion/ToneAnalysisEngine.js",
+
+  // Assets
   "/avatar.png"
 ];
 
@@ -35,11 +59,11 @@ const CORE_ASSETS = [
    =============================== */
 self.addEventListener("install", event => {
   event.waitUntil(
-    caches.open(CACHE_VERSION).then(cache => {
-      return cache.addAll(CORE_ASSETS);
+    caches.open(CACHE_STATIC).then(cache => {
+      return cache.addAll(STATIC_ASSETS);
     })
   );
-  self.skipWaiting(); // activate immediately
+  self.skipWaiting();
 });
 
 /* ===============================
@@ -50,62 +74,76 @@ self.addEventListener("activate", event => {
     caches.keys().then(keys => {
       return Promise.all(
         keys.map(key => {
-          if (key !== CACHE_VERSION) {
+          if (
+            key !== CACHE_STATIC &&
+            key !== CACHE_DYNAMIC
+          ) {
             return caches.delete(key);
           }
         })
       );
     })
   );
-  self.clients.claim(); // control open pages
+  self.clients.claim();
 });
 
 /* ===============================
-   FETCH (SAFE STRATEGY)
+   FETCH STRATEGY
    =============================== */
 self.addEventListener("fetch", event => {
   const req = event.request;
 
-  // ⚠️ Do NOT cache POST / voice / dynamic calls
+  /* ⚠️ Do NOT cache POST / voice / dynamic calls */
   if (req.method !== "GET") return;
 
-  // Only cache same-origin requests
-  if (!req.url.startsWith(self.location.origin)) return;
+  const url = new URL(req.url);
 
+  /* ❌ Never touch microphone / TTS / STT streams */
+  if (
+    url.pathname.includes("/voice/") &&
+    req.headers.get("accept")?.includes("audio")
+  ) {
+    return;
+  }
+
+  /* ===============================
+     STATIC FILES → Cache First
+     =============================== */
+  if (STATIC_ASSETS.includes(url.pathname)) {
+    event.respondWith(
+      caches.match(req).then(cached => {
+        return cached || fetch(req);
+      })
+    );
+    return;
+  }
+
+  /* ===============================
+     OTHER GET → Network First
+     =============================== */
   event.respondWith(
-    caches.match(req).then(cached => {
-      if (cached) return cached;
-
-      return fetch(req)
-        .then(resp => {
-          // Clone & store only valid responses
-          if (
-            resp &&
-            resp.status === 200 &&
-            resp.type === "basic"
-          ) {
-            const respClone = resp.clone();
-            caches.open(CACHE_VERSION).then(cache => {
-              cache.put(req, respClone);
-            });
-          }
-          return resp;
-        })
-        .catch(() => {
-          // Offline fallback (HTML only)
-          if (req.headers.get("accept")?.includes("text/html")) {
-            return caches.match("/index.html");
-          }
+    fetch(req)
+      .then(res => {
+        return caches.open(CACHE_DYNAMIC).then(cache => {
+          cache.put(req, res.clone());
+          return res;
         });
-    })
+      })
+      .catch(() => {
+        return caches.match(req);
+      })
   );
 });
 
 /* ===============================
-   MESSAGE (OPTIONAL CONTROL)
+   MESSAGE CHANNEL (Future use)
    =============================== */
 self.addEventListener("message", event => {
-  if (event.data === "CLEAR_CACHE") {
-    caches.delete(CACHE_VERSION);
+  if (!event.data) return;
+
+  if (event.data.type === "ANJALI_CLEAR_CACHE") {
+    caches.keys().then(keys => {
+      keys.forEach(k => caches.delete(k));
+    });
   }
 });
