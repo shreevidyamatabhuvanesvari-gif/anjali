@@ -72,51 +72,7 @@
     }
   </style>
 </head>
-<script>
-let brainWindow = null;
 
-// Admin Brain खोलना
-document.getElementById("adminBtn").onclick = () => {
-  brainWindow = window.open("admin.html", "_blank");
-};
-
-// Brain से आने वाले जवाब सुनना
-window.addEventListener("message", (event) => {
-  if (!event.data) return;
-
-  if (event.data.type === "ANJALI_REPLY") {
-    const text = event.data.text;
-    const emotion = event.data.emotion;
-
-    // स्क्रीन पर दिखाओ
-    const status = document.getElementById("appStatus");
-    if (status) status.textContent = "Anjali: " + text;
-
-    // आवाज़ से बोलवाओ
-    if (window.TTS) {
-      TTS.speak(text);
-    }
-
-    // Emotion update hook
-    if (window.updateEmotion) {
-      updateEmotion(emotion);
-    }
-  }
-});
-
-  // 🔊 Anjali बोले बटन
-document.getElementById("speakBtn").onclick = () => {
-  if (!lastAnjaliReply) {
-    alert("Anjali ने अभी कुछ कहा नहीं है");
-    return;
-  }
-
-  if (window.TTS) {
-    TTS.speak(lastAnjaliReply);
-  }
-};
-  
-</script>
 <body>
 <main class="card">
 
@@ -135,41 +91,58 @@ document.getElementById("speakBtn").onclick = () => {
 
   <div class="actions">
     <button class="btn" id="startBtn">शुरू करें</button>
-    <button id="speakBtn">🔊 Anjali बोले</button>
     <button class="btn secondary" id="adminBtn">Admin Panel</button>
-    <button id="talkBtn" class="btn primary">
-  🌸 अंजली से बात करें
-    </button>
   </div>
 
   <div class="footer">Foundation • Stage-1</div>
 
-  <!-- CORE -->
+  <!-- ===============================
+     CORE (सबसे पहले)
+     =============================== -->
 <script src="core/AnjaliCore.js"></script>
+
+<!-- ===============================
+     MEMORY / KNOWLEDGE
+     =============================== -->
+<script src="learning/KnowledgeBase.js"></script>
+<script src="learning/ExperienceMemory.js"></script>
 <script src="core/ContextMemory.js"></script>
 
-<!-- THINKING -->
+<!-- ===============================
+     KNOWLEDGE ANSWER RETRIEVAL
+     =============================== -->
+<script src="answer/KnowledgeAnswerEngine.js"></script>
+<script src="answer/KnowledgeBridge.js"></script>
+
+<!-- ===============================
+     THINKING & REASONING (Level-4)
+     =============================== -->
+<script src="core/ReadingMode.js"></script>
 <script src="reasoning/ReasoningEngine.js"></script>
 
-<!-- KNOWLEDGE -->
-<script src="learning/KnowledgeBase.js"></script>
-<script src="answer/KnowledgeAnswerEngine.js"></script>
-
-
-
-
-
-  
-<!-- RESPONSE -->
+<!-- ===============================
+     RESPONSE ENGINE
+     =============================== -->
 <script src="response/ResponseEngine.js"></script>
 
-<!-- VOICE -->
+<!-- ===============================
+     CONTROL / ADMIN
+     =============================== -->
+<script src="core/AdminControl.js"></script>
+
+  <!-- ===============================
+     VOICE SYSTEM
+     =============================== -->
 <script src="voice/tts.js"></script>
 <script src="voice/stt.js"></script>
 <script src="voice/STT_LongListening.js"></script>
-
-<!-- PRESENCE -->
-<script src="presence/AnjaliPresence.js"></script>
+<!-- ===============================
+     DIAGNOSTICS (सबसे अंत में)
+     =============================== -->
+<script src="diagnostics/anjali_real_diagnostic.js"></script>
+<script src="diagnostics/anjali_diagnostic_spec.js"></script>
+<script src="diagnostics/anjali_diagnostic_weights.js"></script>
+<script src="diagnostics/anjali_diagnostic_score.js"></script
 
   <!-- 🌸 System Monitor -->
   <div class="footer">
@@ -209,12 +182,6 @@ document.getElementById("startBtn").onclick = () => {
 alert("Anjali Brain admin.html में सक्रिय है");
 };
 </script>
-  
-  <script>
-  document.getElementById("talkBtn").onclick = function () {
-    window.location.href = "talk_to_anjali.html";
-  };
-  </script>
   
 <script>
 /* ===== FORCED REAL DIAGNOSTIC WRITE ===== */
