@@ -1,10 +1,10 @@
 /* ==========================================================
-   STT — Speech To Text (FINAL STABLE)
+   STT — Speech To Text (FINAL COMPLETE)
    ROLE:
-   1. User की आवाज़ सुनना
-   2. Text निकालना
-   3. Text को ReasoningEngine.process() को देना
-   ❗ खुद उत्तर बनाना या बोलना नहीं
+   - User की आवाज़ सुनना
+   - Text निकालना
+   - ReasoningEngine.process() को देना
+   - बातचीत को लगातार चालू रखना
    ========================================================== */
 
 (function () {
@@ -35,11 +35,6 @@
       console.log("🎤 STT Listening...");
     };
 
-    recognition.onend = () => {
-      listening = false;
-      console.log("🛑 STT Stopped");
-    };
-
     recognition.onerror = (e) => {
       listening = false;
       console.error("❌ STT Error:", e);
@@ -52,9 +47,6 @@
 
         console.log("👤 User said:", transcript);
 
-        /* ===============================
-           🔑 CORE FIX — ONLY THIS LINE
-           =============================== */
         if (
           window.ReasoningEngine &&
           typeof window.ReasoningEngine.process === "function"
@@ -66,6 +58,22 @@
 
       } catch (e) {
         console.error("❌ STT RESULT ERROR", e);
+      }
+    };
+
+    recognition.onend = () => {
+      listening = false;
+      console.log("🛑 STT Stopped");
+
+      // 🔁 AUTO-RESTART — यही बातचीत को जीवित रखता है
+      if (
+        window.AnjaliCore &&
+        typeof window.AnjaliCore.isActive === "function" &&
+        window.AnjaliCore.isActive()
+      ) {
+        setTimeout(() => {
+          start();
+        }, 600); // हल्का विराम (echo से बचाव)
       }
     };
   }
