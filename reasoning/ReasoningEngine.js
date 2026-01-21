@@ -135,21 +135,52 @@
   }
 
   /* ======================================================
-     MAIN PIPELINE
-     ====================================================== */
-  function process(input) {
-    if (running) return;
-    running = true;
+   MAIN PIPELINE
+   ====================================================== */
+function process(input) {
+  if (running) return;
+  running = true;
 
-    try {
-      const text = normalizeInput(input);
-      if (!text) return;
+  try {
+    const text = normalizeInput(input);
+    if (!text) return;
 
-      const memory = fetchMemoryContext(text);
-      const emotion = analyzeEmotion(text);
+    const memory = fetchMemoryContext(text);
+    const knowledge = fetchKnowledge(text);
+    const emotion = analyzeEmotion(text);
 
-      const memory = fetchMemoryContext(text);
-const emotion = analyzeEmotion(text);
+    const baseDecision = computeDecision(
+      text,
+      memory,
+      emotion,
+      knowledge
+    );
+
+    const finalDecision = metaCorrect(baseDecision);
+    lastDecision = finalDecision;
+
+    /* === OUTPUT DISPATCH === */
+    if (window.AnjaliCore && window.AnjaliCore.isActive()) {
+      if (window.ResponseEngine) {
+        ResponseEngine.onDecision(finalDecision, text);
+      }
+    }
+
+    /* === EXPERIENCE PERSISTENCE === */
+    persistEpisode({
+      input: text,
+      output: finalDecision.text,
+      confidence: finalDecision.confidence,
+      source: finalDecision.source,
+      at: new Date().toISOString()
+    });
+
+  } catch (e) {
+    recordError("PROCESS_PIPELINE", e);
+  } finally {
+    running = false;
+  }
+}
 
 // ===== KNOWLEDGE RETRIEVAL =====
 let knowledge = null;
