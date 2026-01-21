@@ -253,5 +253,39 @@ alert("Anjali Brain admin.html में सक्रिय है");
   }
 })();
 </script>
+
+  <script>
+/* ===============================
+   USER → ANJALI CORE PIPELINE
+   =============================== */
+
+document.getElementById("startBtn").onclick = () => {
+  if (window.AnjaliCore) {
+    AnjaliCore.start();
+    document.getElementById("appStatus").textContent =
+      "🎧 अंजली सुन रही है…";
+  }
+
+  // STT शुरू करें
+  if (window.STT && typeof STT.start === "function") {
+    STT.start();
+  }
+};
+
+// STT से टेक्स्ट आने पर
+if (window.STT) {
+  STT.onResult = function (text) {
+    if (!text) return;
+
+    document.getElementById("appStatus").textContent =
+      "आप: " + text;
+
+    // 🔑 यही सबसे ज़रूरी लाइन है
+    if (window.AnjaliCore) {
+      AnjaliCore.onUserSpeech(text);
+    }
+  };
+}
+  </script>
 </body>
 </html>
