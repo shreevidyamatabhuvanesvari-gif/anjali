@@ -1,12 +1,18 @@
 /* ==========================================================
-   KnowledgeAnswerEngine — Level-4 / Version-4.x (FIXED)
+   KnowledgeAnswerEngine — Level-4 / Version-4.x
+   PURPOSE:
+   Retrieve factual knowledge relevant to a user query
+   from local knowledge stores (mobile-browser safe).
    ========================================================== */
 
 (function () {
   "use strict";
 
+  /* ===============================
+     INTERNAL STATE
+     =============================== */
   let initialized = false;
-  let knowledgeIndex = [];
+  let knowledgeIndex = []; // normalized searchable index
   const ERROR_LOG = [];
 
   /* ===============================
@@ -26,7 +32,7 @@
   }
 
   /* ===============================
-     TEXT UTILITIES
+     TEXT UTILITIES (REAL)
      =============================== */
   function normalize(text) {
     return String(text || "")
@@ -41,36 +47,46 @@
   }
 
   /* ===============================
-     LOAD KNOWLEDGE (REAL)
+     LOAD KNOWLEDGE (REAL SOURCE)
      =============================== */
   function loadKnowledge() {
     if (initialized) return;
+
     initialized = true;
 
-    if (
-      window.KnowledgeBase &&
-      typeof window.KnowledgeBase.dump === "function"
-    ) {
+    /* Priority 1: LongTermMemory (dynamic knowledge) */
+    if (window.LongTermMemory && typeof window.LongTermMemory.dump === "function") {
       safe(() => {
-        const records = KnowledgeBase.dump();
-
+        const records = window.LongTermMemory.dump();
         records.forEach(r => {
-          if (r && r.question && r.answer) {
-            const combined = `${r.question} ${r.answer}`;
-
+          if (r && r.content) {
             knowledgeIndex.push({
-              source: "KnowledgeBase",
-              text: r.answer,
-              tokens: tokenize(combined)
+              source: r.source || "LongTermMemory",
+              text: r.content,
+              tokens: tokenize(r.content)
             });
           }
         });
-      }, "LOAD_KB_DUMP");
+      }, "LOAD_LTM");
+    }
+
+    /* Priority 2: Static KnowledgeBase (articles) */
+    if (window.KnowledgeBase && typeof window.KnowledgeBase.search === "function") {
+      safe(() => {
+        const probe = window.KnowledgeBase.search(" ");
+        if (probe && probe.content) {
+          knowledgeIndex.push({
+            source: probe.source || "KnowledgeBase",
+            text: probe.content,
+            tokens: tokenize(probe.content)
+          });
+        }
+      }, "LOAD_KB");
     }
   }
 
   /* ===============================
-     MATCHING LOGIC
+     MATCHING LOGIC (REAL)
      =============================== */
   function scoreMatch(queryTokens, entryTokens) {
     let hits = 0;
@@ -81,7 +97,7 @@
   }
 
   /* ===============================
-     RETRIEVE
+     MAIN RETRIEVAL FUNCTION
      =============================== */
   function retrieve(query) {
     loadKnowledge();
@@ -100,7 +116,9 @@
       }
     });
 
-    if (!best || bestScore < 0.15) return null;
+    if (!best || bestScore < 0.15) {
+      return null; // ईमानदार अस्वीकार
+    }
 
     return {
       source: best.source,
@@ -123,6 +141,9 @@
     };
   }
 
+  /* ===============================
+     GLOBAL EXPOSURE
+     =============================== */
   window.KnowledgeAnswerEngine = Object.freeze({
     retrieve,
     getStatus,
