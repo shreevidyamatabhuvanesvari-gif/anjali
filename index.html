@@ -144,48 +144,36 @@ document.getElementById("speakBtn").onclick = () => {
 
   <div class="footer">Foundation • Stage-1</div>
 
-  <!-- CORE -->
+  <!-- ================= CORE ================= -->
 <script src="core/AnjaliCore.js"></script>
-<script src="core/ContextMemory.js"></script>
 
-<!-- THINKING -->
+<!-- ================= MEMORY ================= -->
+<script src="core/ContextMemory.js"></script>
+<script src="learning/ExperienceMemory.js"></script>
+
+<!-- ================= KNOWLEDGE ================= -->
+<script src="learning/KnowledgeBase.js"></script>
+
+<!-- Knowledge Readers -->
+<script src="answer/RawKnowledgeReader.js"></script>
+<script src="answer/KnowledgeAnswerEngine.js"></script>
+
+<!-- ================= THINKING ================= -->
 <script src="reasoning/ReasoningEngine.js"></script>
 
-<!-- KNOWLEDGE -->
-<script src="learning/KnowledgeBase.js"></script>
-  <script src="learning/ExperienceMemory.js"></script>
-<script src="answer/KnowledgeAnswerEngine.js"></script>
-  <script src="answer/RawKnowledgeReader.js"></script> <!--
-
-<!-- EMOTION L1 -->
-<script src="emotion/EmotionPerceptionEngine.js"></script>
-<script src="emotion/ToneAnalysisEngine.js"></script>
-<script src="emotion/ContextEmotionMapper.js"></script>
-<script src="emotion/UserStateTracker.js"></script>
-<script src="emotion/EmpathyTrigger.js"></script>
-<script src="emotion/TrustDetector.js"></script>
-
-<!-- EMOTION L2 -->
-<script src="emotion/EmotionalStateCore.js"></script>
-<script src="emotion/MoodStabilizer.js"></script>
-<script src="emotion/EmotionalMemory.js"></script>
-<script src="emotion/EmotionalDriftController.js"></script>
-<script src="emotion/CompassionIndex.js"></script>
-<script src="emotion/EmotionPipelineBridge.js"></script>
-
-
-
-  
-<!-- RESPONSE -->
+<!-- ================= RESPONSE ================= -->
 <script src="response/ResponseEngine.js"></script>
 
-<!-- VOICE -->
+<!-- ================= VOICE ================= -->
 <script src="voice/tts.js"></script>
 <script src="voice/stt.js"></script>
 <script src="voice/STT_LongListening.js"></script>
 
-<!-- PRESENCE -->
+<!-- ================= PRESENCE ================= -->
 <script src="presence/AnjaliPresence.js"></script>
+
+<!-- ================= OPTIONAL / SAFE ================= -->
+
 
   <!-- 🌸 System Monitor -->
   <div class="footer">
