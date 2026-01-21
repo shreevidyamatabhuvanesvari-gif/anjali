@@ -116,19 +116,27 @@
     }
 
     /* -------------------------------
-       ANSWER (Reasoning untouched)
-       ------------------------------- */
-    let reply = "इस प्रश्न का उत्तर मेरे ज्ञान में नहीं है।";
+   ANSWER (FINAL – BRAIN HANDOFF)
+   ------------------------------- */
 
-    try {
-      if (window.ReasoningEngine) {
-        reply = await ReasoningEngine.reason(transcript);
-      } else if (window.AnswerEngine) {
-        reply = await AnswerEngine.answer(transcript);
-      }
-    } catch (_) {
-      reply = "उत्तर देने में मुझे कठिनाई हुई।";
-    }
+try {
+  if (window.ReasoningEngine && typeof ReasoningEngine.process === "function") {
+    // 🧠 पूरा नियंत्रण Brain को सौंप दो
+    ReasoningEngine.process(transcript);
+    return; // ResponseEngine + TTS खुद संभालेंगे
+  }
+
+  // Fallback (बहुत दुर्लभ स्थिति)
+  if (window.TTS) {
+    TTS.speak("मैं अभी सीख रही हूँ।");
+  }
+
+} catch (e) {
+  console.error("STT → Brain Error:", e);
+  if (window.TTS) {
+    TTS.speak("उत्तर देने में मुझे कठिनाई हुई।");
+  }
+}
 
     /* -------------------------------
        SPEAK FULL ANSWER
