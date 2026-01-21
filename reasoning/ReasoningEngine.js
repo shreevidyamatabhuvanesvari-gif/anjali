@@ -1,5 +1,10 @@
 /* ==========================================================
-   ReasoningEngine — Level-4 / Version-4.x (FIXED & CLEAN)
+   ReasoningEngine — Level-4 / Version-4.x
+   REAL OPERATIONAL THINKING CORE
+   PURPOSE:
+   Transform user input into a reasoned, reflective,
+   self-corrected response using memory, emotion,
+   and runtime confidence calibration — for mobile browsers.
    ========================================================== */
 
 (function () {
@@ -15,20 +20,20 @@
   const MAX_ERRORS = 50;
 
   /* ======================================================
-     ERROR MANAGEMENT
+     ERROR MANAGEMENT (REAL)
      ====================================================== */
   function recordError(source, error) {
     ERROR_JOURNAL.push({
       time: new Date().toISOString(),
       source,
-      message: error?.message || String(error)
+      message: error && error.message ? error.message : String(error)
     });
     if (ERROR_JOURNAL.length > MAX_ERRORS) {
       ERROR_JOURNAL.shift();
     }
   }
 
-  function safe(fn, source) {
+  function safeExecute(fn, source) {
     try {
       return fn();
     } catch (e) {
@@ -42,85 +47,87 @@
      ====================================================== */
   function normalizeInput(input) {
     if (typeof input !== "string") return "";
-    return input.replace(/\s+/g, " ").trim();
+    return input
+      .replace(/\s+/g, " ")
+      .replace(/[^\S\r\n]+/g, " ")
+      .trim();
   }
 
   /* ======================================================
-     MEMORY
+     MEMORY INTERFACE (REAL)
      ====================================================== */
-  function fetchMemory(text) {
+  function fetchMemoryContext(text) {
     if (!window.LongTermMemory) return null;
-    return safe(() => LongTermMemory.search(text), "MEMORY_FETCH");
+
+    return safeExecute(() => {
+      return window.LongTermMemory.search(text);
+    }, "MEMORY_FETCH");
   }
 
   function persistEpisode(record) {
     if (!window.LongTermMemory) return;
-    safe(() => LongTermMemory.store(record), "MEMORY_STORE");
+
+    safeExecute(() => {
+      window.LongTermMemory.store(record);
+    }, "MEMORY_STORE");
   }
 
   /* ======================================================
-     KNOWLEDGE
-     ====================================================== */
-  function fetchKnowledge(text) {
-    if (!window.KnowledgeAnswerEngine) return null;
-    return safe(
-      () => KnowledgeAnswerEngine.retrieve(text),
-      "KNOWLEDGE_FETCH"
-    );
-  }
-
-  /* ======================================================
-     EMOTION
+     EMOTION INTERFACE (REAL)
      ====================================================== */
   function analyzeEmotion(text) {
     if (!window.EmotionEngine) return null;
-    return safe(() => EmotionEngine.analyze(text), "EMOTION_ANALYSIS");
+
+    return safeExecute(() => {
+      return window.EmotionEngine.analyze(text);
+    }, "EMOTION_ANALYSIS");
   }
 
   /* ======================================================
-     DECISION CORE
+     CORE DECISION COMPUTATION
      ====================================================== */
-  function computeDecision(text, memory, knowledge, emotion) {
-    let confidence = 0.4;
-    let responseText = text;
+  function computeDecision(input, memory, emotion) {
+    let confidence = 0;
     const rationale = [];
 
-    if (knowledge?.content) {
-      responseText = knowledge.content;
-      confidence = Math.max(confidence, knowledge.relevance || 0.7);
-      rationale.push("knowledge-used");
-    }
-
-    if (memory?.matchStrength) {
+    if (memory && typeof memory.matchStrength === "number") {
       confidence += memory.matchStrength;
       rationale.push("memory-aligned");
     }
 
-    if (emotion?.stability) {
+    if (emotion && typeof emotion.stability === "number") {
       confidence += emotion.stability;
-      rationale.push("emotion-aware");
+      rationale.push("emotion-stable");
     }
 
-    confidence = Math.min(1, confidence);
+    if (!memory && !emotion) {
+      confidence += 0.25;
+      rationale.push("context-neutral");
+    }
+
+    confidence = Math.max(0, Math.min(1, confidence));
 
     return {
-      text: responseText,
+      text: input,
       confidence,
-      source: knowledge ? knowledge.source : "fallback",
       rationale: rationale.join(" | "),
       decidedAt: Date.now()
     };
   }
 
   /* ======================================================
-     META CORRECTION
+     META-REASONING & SELF-CORRECTION
      ====================================================== */
   function metaCorrect(decision) {
-    if (decision.confidence < 0.35) {
+    const adaptiveThreshold = 0.4;
+
+    if (decision.confidence < adaptiveThreshold) {
       return {
         ...decision,
-        text: "मैं इस विषय को समझने की प्रक्रिया में हूँ।",
-        confidence: decision.confidence + 0.15,
+        text:
+          "मुझे इस विषय पर और स्पष्टता चाहिए। " +
+          decision.text,
+        confidence: Math.min(1, decision.confidence + 0.15),
         metaCorrected: true
       };
     }
@@ -128,7 +135,7 @@
   }
 
   /* ======================================================
-     MAIN PIPELINE (SINGLE SOURCE OF TRUTH)
+     MAIN PIPELINE
      ====================================================== */
   function process(input) {
     if (running) return;
@@ -138,36 +145,63 @@
       const text = normalizeInput(input);
       if (!text) return;
 
-      const memory = fetchMemory(text);
-      const knowledge = fetchKnowledge(text);
+      const memory = fetchMemoryContext(text);
       const emotion = analyzeEmotion(text);
 
-      const base = computeDecision(text, memory, knowledge, emotion);
-      const finalDecision = metaCorrect(base);
+      const baseDecision = computeDecision(text, memory, emotion);
+      const finalDecision = metaCorrect(baseDecision);
 
       lastDecision = finalDecision;
 
-      if (window.AnjaliCore?.isActive() && window.ResponseEngine) {
-        ResponseEngine.onDecision(finalDecision, text);
+      /* === OUTPUT DISPATCH (FINALIZED) === */
+if (window.AnjaliCore && window.AnjaliCore.isActive()) {
+  safeExecute(() => {
+    if (window.ResponseEngine) {
+
+      /* ===============================
+         MORAL EMOTION EVALUATION (LAYER 3)
+         =============================== */
+      let ethicalReport = null;
+
+      if (window.ModuleEthicalEmotionEngine) {
+        ethicalReport = ModuleEthicalEmotionEngine.evaluate(
+          text,
+          { decision: finalDecision }
+        );
       }
 
+      /* ===============================
+         FINAL DECISION DISPATCH
+         =============================== */
+      window.ResponseEngine.onDecision(
+        finalDecision,
+        {
+          userText: text,
+          ethical: ethicalReport,
+          source: "reasoning-engine",
+          timestamp: Date.now()
+        }
+      );
+    }
+  }, "CORE_OUTPUT");
+}
+
+      /* === EXPERIENCE PERSISTENCE === */
       persistEpisode({
         input: text,
         output: finalDecision.text,
         confidence: finalDecision.confidence,
-        source: finalDecision.source,
+        rationale: finalDecision.rationale,
         at: new Date().toISOString()
       });
 
-    } catch (e) {
-      recordError("PROCESS_PIPELINE", e);
     } finally {
       running = false;
     }
   }
 
   /* ======================================================
-     DIAGNOSTICS
+     DIAGNOSTIC INTROSPECTION
      ====================================================== */
   function getStatus() {
     return {
@@ -187,7 +221,7 @@
     process,
     getStatus,
     level: "4.x",
-    mode: "clean-operational"
+    mode: "real-operational"
   });
 
 })();
