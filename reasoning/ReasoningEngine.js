@@ -11,7 +11,7 @@
   let running = false;
 
   /* ===============================
-     MAIN PROCESS (ASYNC)
+     MAIN PROCESS
      =============================== */
   async function process(input) {
     if (running) return;
@@ -24,27 +24,38 @@
       let knowledge = null;
 
       /* ===============================
-         KNOWLEDGE RETRIEVAL
+         KNOWLEDGE RETRIEVAL (SAFE)
          =============================== */
       if (
         window.KnowledgeAnswerEngine &&
-        typeof KnowledgeAnswerEngine.retrieve === "function"
+        typeof window.KnowledgeAnswerEngine.retrieve === "function"
       ) {
-        knowledge = await KnowledgeAnswerEngine.retrieve(text);
+        try {
+          knowledge = KnowledgeAnswerEngine.retrieve(text);
+        } catch (e) {
+          console.warn("⚠️ Knowledge retrieve failed", e);
+          knowledge = null;
+        }
       }
 
       /* ===============================
          DECISION FORMATION
          =============================== */
       const decision = {
-        text: knowledge?.content || "मैं अभी यह सीख रही हूँ।",
-        confidence: knowledge?.relevance || 0.3,
-        source: knowledge ? knowledge.source : "fallback",
+        text: knowledge && knowledge.content
+          ? knowledge.content
+          : "मैं अभी इस प्रश्न का उत्तर सीख रही हूँ।",
+        confidence: knowledge && knowledge.relevance
+          ? Math.min(0.9, knowledge.relevance)
+          : 0.35,
+        source: knowledge && knowledge.source
+          ? knowledge.source
+          : "fallback",
         decidedAt: Date.now()
       };
 
       /* ===============================
-         OUTPUT DISPATCH
+         OUTPUT DISPATCH (CRITICAL)
          =============================== */
       if (
         window.AnjaliCore &&
@@ -54,6 +65,8 @@
         typeof window.ResponseEngine.onDecision === "function"
       ) {
         window.ResponseEngine.onDecision(decision, text);
+      } else {
+        console.warn("⚠️ ResponseEngine or AnjaliCore inactive");
       }
 
     } catch (e) {
