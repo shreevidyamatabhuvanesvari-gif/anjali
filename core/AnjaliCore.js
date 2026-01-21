@@ -82,29 +82,19 @@
 
   /* ---------- INPUT FLOW ---------- */
   function onUserSpeech(text) {
-  if (!_active || typeof text !== "string") return;
+    if (!_active || typeof text !== "string") return;
 
-  try {
-    /* ===============================
-       EMOTION PIPELINE (LAYER 1 → 2)
-       =============================== */
-    if (window.EmotionPipelineBridge) {
-      EmotionPipelineBridge.processUserEmotion(text);
+    try {
+      if (
+        window.ReasoningEngine &&
+        typeof window.ReasoningEngine.process === "function"
+      ) {
+        window.ReasoningEngine.process(text);
+      }
+    } catch (e) {
+      _errorLog.push({ t: "REASONING", m: e.message, at: now() });
     }
-
-    /* ===============================
-       REASONING
-       =============================== */
-    if (
-      window.ReasoningEngine &&
-      typeof window.ReasoningEngine.process === "function"
-    ) {
-      window.ReasoningEngine.process(text);
-    }
-  } catch (e) {
-    _errorLog.push({ t: "REASONING", m: e.message, at: now() });
   }
-}
 
   /* ---------- OUTPUT FLOW ---------- */
   function speak(text) {
