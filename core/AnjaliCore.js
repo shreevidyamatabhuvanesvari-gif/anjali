@@ -119,7 +119,7 @@
         tts: !!(window.TTS && typeof window.TTS.speak === "function"),
         reasoning: !!(
           window.ReasoningEngine &&
-          typeof window.ReasoningEngine.process === "function"
+          typeof window.ReasoningEngine.reason === "function"
         )
       },
       errorCount: _errorLog.length
@@ -136,32 +136,31 @@
     getStatus: status
   });
 
-   window.addEventListener("load", () => {
-  console.log("🧠 Anjali Booting...");
+  window.addEventListener("load", () => {
+    console.log("🧠 Anjali Booting...");
 
-  if(window.ContextMemory) ContextMemory.init();
-  console.log("✅ Memory Online");
+    if(window.ContextMemory) ContextMemory.init();
+    console.log("✅ Memory Online");
 
-  if(window.KnowledgeBase) KnowledgeBase.init();
-  console.log("✅ Knowledge Ready");
+    if(window.KnowledgeBase) KnowledgeBase.init();
+    console.log("✅ Knowledge Ready");
 
-  if(window.ReasoningEngine) ReasoningEngine.init();
-  console.log("✅ Reasoning Active");
+    if(window.ReasoningEngine) ReasoningEngine.init && ReasoningEngine.init();
+    console.log("✅ Reasoning Active");
 
-  if(window.KnowledgeAnswerEngine) KnowledgeAnswerEngine.init();
-  console.log("✅ Answer Engine Ready");
+    if(window.KnowledgeAnswerEngine) KnowledgeAnswerEngine.init && KnowledgeAnswerEngine.init();
+    console.log("✅ Answer Engine Ready");
 
-  if(window.ResponseEngine) ResponseEngine.init();
-  console.log("✅ Response Engine Ready");
+    if(window.ResponseEngine) ResponseEngine.init && ResponseEngine.init();
+    console.log("✅ Response Engine Ready");
 
-  if(window.TTS) TTS.init();
-  if(window.STT) STT.init();
-  console.log("✅ Voice Synced");
+    if(window.TTS) TTS.init();
+    if(window.STT) STT.init();
+    console.log("✅ Voice Synced");
 
-  if(window.AnjaliPresence) AnjaliPresence.init();
-  console.log("✅ Presence Alive");
+    if(window.AnjaliPresence) AnjaliPresence.init();
+    console.log("✅ Presence Alive");
 
-  console.log("🚀 Anjali Fully Online");
-});
-
+    console.log("🚀 Anjali Fully Online");
+  });
 })();
