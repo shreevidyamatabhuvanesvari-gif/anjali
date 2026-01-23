@@ -1,8 +1,8 @@
 /* ==========================================================
-   ReasoningEngine — FINAL STABLE CORE
+   ReasoningEngine — FINAL CORRECTED CORE
    ROLE:
-   Take user input, fetch knowledge, decide answer,
-   and hand over to ResponseEngine for speaking.
+   Take user input, fetch knowledge (async-safe),
+   decide answer, and hand over to ResponseEngine.
    ========================================================== */
 
 (function () {
@@ -24,14 +24,15 @@
       let knowledge = null;
 
       /* ===============================
-         KNOWLEDGE RETRIEVAL (SAFE)
+         KNOWLEDGE RETRIEVAL (ASYNC-SAFE)
          =============================== */
       if (
         window.KnowledgeAnswerEngine &&
-        typeof window.KnowledgeAnswerEngine.retrieve === "function"
+        typeof KnowledgeAnswerEngine.retrieve === "function"
       ) {
         try {
-          knowledge = KnowledgeAnswerEngine.retrieve(text);
+          // ✅ CRITICAL FIX: await added
+          knowledge = await KnowledgeAnswerEngine.retrieve(text);
         } catch (e) {
           console.warn("⚠️ Knowledge retrieve failed", e);
           knowledge = null;
@@ -42,35 +43,45 @@
          DECISION FORMATION
          =============================== */
       const decision = {
-        text: knowledge && knowledge.content
-          ? knowledge.content
-          : "मैं अभी इस प्रश्न का उत्तर सीख रही हूँ।",
-        confidence: knowledge && knowledge.relevance
-          ? Math.min(0.9, knowledge.relevance)
-          : 0.35,
-        source: knowledge && knowledge.source
-          ? knowledge.source
-          : "fallback",
+        text:
+          knowledge && knowledge.content
+            ? knowledge.content
+            : "मैं अभी इस प्रश्न का उत्तर सीख रही हूँ।",
+        confidence:
+          knowledge && typeof knowledge.relevance === "number"
+            ? Math.min(0.9, knowledge.relevance)
+            : 0.35,
+        source:
+          knowledge && knowledge.source
+            ? knowledge.source
+            : "fallback",
         decidedAt: Date.now()
       };
 
       /* ===============================
-         OUTPUT DISPATCH (CRITICAL)
+         OUTPUT DISPATCH
          =============================== */
       if (
-        window.AnjaliCore &&
-        typeof window.AnjaliCore.isActive === "function" &&
-        window.AnjaliCore.isActive() &&
         window.ResponseEngine &&
         typeof window.ResponseEngine.onDecision === "function"
       ) {
-        window.ResponseEngine.onDecision(decision, text);
+        ResponseEngine.onDecision(decision, text);
       } else {
-        console.warn("⚠️ ResponseEngine or AnjaliCore inactive");
+        console.warn("⚠️ ResponseEngine unavailable");
       }
 
     } catch (e) {
       console.error("❌ ReasoningEngine.process ERROR", e);
+
+      if (
+        window.ResponseEngine &&
+        typeof ResponseEngine.onDecision === "function"
+      ) {
+        ResponseEngine.onDecision(
+          { text: "मुझे उत्तर बनाने में क्षणिक कठिनाई हुई।" },
+          input
+        );
+      }
     } finally {
       running = false;
     }
