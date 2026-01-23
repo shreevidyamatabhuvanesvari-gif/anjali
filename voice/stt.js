@@ -1,11 +1,12 @@
 /* =========================================================
    voice/stt.js
-   Role: HUMAN-LIKE Speech-To-Text Driver (LEVEL-3)
-   BEHAVIOR:
-   (A) बिना refresh लगातार बातचीत
-   (B) TTS के समय अर्ध-सुनना (noise ignore)
-   (C) User बोले → TTS तुरंत रुके
-   (D) अनंत संवाद चक्र (user बोले तब तक)
+   Role: PURE Speech-To-Text Driver (LEVEL-3 CLEAN)
+   RESPONSIBILITY:
+   - Voice → Text only
+   - No answering
+   - No fallback replies
+   - No TTS speak
+   - Pass transcript forward safely
    ========================================================= */
 
 (function (window) {
@@ -15,7 +16,7 @@
     window.SpeechRecognition || window.webkitSpeechRecognition;
 
   if (!SpeechRecognition) {
-    console.error("STT not supported");
+    console.error("STT not supported in this browser");
     return;
   }
 
@@ -27,13 +28,12 @@
   let active = false;
   let listening = false;
   let idleTimer = null;
-   let lastUserQuestion = "";
-   let lastAnjaliReply = "";
+  let lastUserQuestion = "";
 
   const IDLE_LIMIT = 120000; // 2 minutes
 
   /* ==================================================
-     ⏱️ IDLE TIMER (जीवित रहने हेतु)
+     ⏱️ IDLE TIMER
      ================================================== */
   function resetIdleTimer() {
     clearTimeout(idleTimer);
@@ -49,7 +49,6 @@
      ================================================== */
   function start() {
     if (active || !listening) return;
-
     try {
       recognition.start();
       active = true;
@@ -62,31 +61,31 @@
      🎧 RESULT (USER SPOKE)
      ================================================== */
   recognition.onresult = async function (event) {
-  active = false;
+    active = false;
 
-  if (!event.results || !event.results[0] || !event.results[0][0]) {
-    if (listening) start();
-    return;
-  }
+    if (!event.results || !event.results[0] || !event.results[0][0]) {
+      if (listening) start();
+      return;
+    }
 
-  const transcript = event.results[0][0].transcript.trim();
-  if (!transcript) {
-    if (listening) start();
-    return;
-  }
+    const transcript = event.results[0][0].transcript.trim();
+    if (!transcript) {
+      if (listening) start();
+      return;
+    }
 
-  /* ===============================
-     🛑 DUPLICATE QUESTION GUARD
-     =============================== */
-  if (transcript === lastUserQuestion) {
-    resetIdleTimer();
-    if (listening) start();
-    return;
-  }
-  lastUserQuestion = transcript;
     /* -------------------------------
-       (B) SEMI-LISTENING FILTER
-       शोर / साँस / mic-click ignore
+       DUPLICATE GUARD
+       ------------------------------- */
+    if (transcript === lastUserQuestion) {
+      resetIdleTimer();
+      if (listening) start();
+      return;
+    }
+    lastUserQuestion = transcript;
+
+    /* -------------------------------
+       NOISE / SHORT INPUT FILTER
        ------------------------------- */
     if (transcript.length < 4) {
       resetIdleTimer();
@@ -98,10 +97,9 @@
     resetIdleTimer();
 
     /* -------------------------------
-       (C) USER BARGE-IN
-       User बोला → TTS तुरंत रुके
+       USER BARGE-IN
        ------------------------------- */
-    if (window.TTS && typeof TTS.stop === "function") {
+    if (window.TTS && typeof window.TTS.stop === "function") {
       TTS.stop();
     }
 
@@ -115,43 +113,50 @@
       return;
     }
 
-    /* -------------------------------
-       ANSWER (Reasoning untouched)
-       ------------------------------- */
-    let reply = "इस प्रश्न का उत्तर मेरे ज्ञान में नहीं है।";
-
+    /* ==================================================
+       👉 PASS TRANSCRIPT FOR DECISION
+       STT DOES NOT ANSWER
+       ================================================== */
     try {
-      if (window.ReasoningEngine) {
-        reply = await ReasoningEngine.reason(transcript);
-      } else if (window.AnswerEngine) {
-        reply = await AnswerEngine.answer(transcript);
+      if (window.ReasoningEngine && window.ResponseEngine) {
+        const decision = await ReasoningEngine.reason(transcript);
+
+        if (decision && decision.text) {
+          ResponseEngine.onDecision(decision, transcript);
+        } else {
+          ResponseEngine.onDecision(
+            { text: "मैं इस समय उत्तर नहीं दे पा रही हूँ।" },
+            transcript
+          );
+        }
+      } else if (window.ResponseEngine) {
+        ResponseEngine.onDecision(
+          { text: "प्रणाली अभी तैयार नहीं है।" },
+          transcript
+        );
       }
-    } catch (_) {
-      reply = "उत्तर देने में मुझे कठिनाई हुई।";
+    } catch (e) {
+      if (window.ResponseEngine) {
+        ResponseEngine.onDecision(
+          { text: "मुझे उत्तर समझने में क्षणिक कठिनाई हुई।" },
+          transcript
+        );
+      }
     }
 
     /* -------------------------------
-       SPEAK FULL ANSWER
-       ------------------------------- */
-    if (window.TTS && reply) {
-      TTS.speak(reply);
-    }
-
-    /* -------------------------------
-       PASSIVE MEMORY (non-blocking)
+       PASSIVE MEMORY (OPTIONAL)
        ------------------------------- */
     setTimeout(() => {
       try {
         if (window.ContextMemory) {
           ContextMemory.addUserUtterance(transcript);
-          ContextMemory.addAnjaliReply(reply);
         }
       } catch (_) {}
     }, 0);
 
     /* -------------------------------
-       (A + D) CONTINUOUS LOOP
-       उत्तर → चुप → फिर सुनना
+       CONTINUOUS LOOP
        ------------------------------- */
     waitForSpeechEnd(() => {
       if (listening) start();
@@ -159,20 +164,16 @@
   };
 
   /* ==================================================
-     🔚 END / ERROR (SELF-HEALING)
+     🔚 END / ERROR (SELF-HEAL)
      ================================================== */
   recognition.onend = function () {
     active = false;
-    if (listening) {
-      setTimeout(start, 300);
-    }
+    if (listening) setTimeout(start, 300);
   };
 
   recognition.onerror = function () {
     active = false;
-    if (listening) {
-      setTimeout(start, 600);
-    }
+    if (listening) setTimeout(start, 600);
   };
 
   /* ==================================================
@@ -190,7 +191,7 @@
   /* ==================================================
      🌐 EXPOSE
      ================================================== */
-  window.STT = {
+  window.STT = Object.freeze({
     start() {
       listening = true;
       start();
@@ -200,6 +201,6 @@
       clearTimeout(idleTimer);
       try { recognition.stop(); } catch (_) {}
     }
-  };
+  });
 
 })(window);
