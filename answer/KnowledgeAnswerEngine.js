@@ -1,19 +1,12 @@
 /* ==========================================================
-   KnowledgeAnswerEngine — FINAL CORRECTED CORE
-   PURPOSE:
-   Read ALL saved Q/A from KnowledgeBase (IndexedDB),
-   build searchable index, and return correct answers.
+   KnowledgeAnswerEngine.js — Core for retrieving saved Q/A
    ========================================================== */
-
 (function () {
   "use strict";
 
   let initialized = false;
   let knowledgeIndex = [];
 
-  /* ===============================
-     TEXT NORMALIZATION
-     =============================== */
   function normalize(text) {
     return String(text || "")
       .toLowerCase()
@@ -28,58 +21,36 @@
       .filter(w => w.length > 2);
   }
 
-  /* ===============================
-     LOAD ALL KNOWLEDGE (FIXED)
-     =============================== */
   async function loadKnowledge() {
     if (initialized) return;
     initialized = true;
-
-    if (
-      !window.KnowledgeBase ||
-      typeof KnowledgeBase.getAll !== "function"
-    ) {
+    if (!window.KnowledgeBase || typeof KnowledgeBase.getAll !== "function") {
       console.warn("⚠️ KnowledgeBase.getAll() उपलब्ध नहीं");
       return;
     }
-
     let all = [];
-
     try {
-      all = await KnowledgeBase.getAll(); // ✅ CORRECT API
+      all = await KnowledgeBase.getAll(); // Fetch all saved Q/A
     } catch (e) {
-      console.error("❌ Knowledge getAll failed", e);
+      console.error("❌ KnowledgeBase.getAll() failed", e);
       return;
     }
-
     if (!Array.isArray(all)) {
       console.warn("⚠️ Knowledge data invalid");
       return;
     }
-
     all.forEach(item => {
       if (!item || !item.question || !item.answer) return;
-
-      const combinedText =
-        item.question + " " + item.answer;
-
+      const combinedText = item.question + " " + item.answer;
       knowledgeIndex.push({
         source: "KnowledgeBase",
         content: item.answer,
         tokens: tokenize(combinedText)
       });
     });
-
-    console.log(
-      "📚 KnowledgeAnswerEngine Indexed:",
-      knowledgeIndex.length,
-      "records"
-    );
+    console.log("📚 Indexed Knowledge records:", knowledgeIndex.length);
   }
 
-  /* ===============================
-     MATCH SCORING
-     =============================== */
   function scoreMatch(queryTokens, entryTokens) {
     let hits = 0;
     queryTokens.forEach(t => {
@@ -88,20 +59,13 @@
     return hits / Math.max(queryTokens.length, 1);
   }
 
-  /* ===============================
-     RETRIEVE ANSWER
-     =============================== */
   async function retrieve(query) {
-    await loadKnowledge();
-
+    await loadKnowledge();  // सुनिश्चित करें कि डेटा लोड है
     if (!knowledgeIndex.length) return null;
-
     const qTokens = tokenize(query);
     if (!qTokens.length) return null;
-
     let best = null;
     let bestScore = 0;
-
     knowledgeIndex.forEach(entry => {
       const score = scoreMatch(qTokens, entry.tokens);
       if (score > bestScore) {
@@ -109,11 +73,9 @@
         best = entry;
       }
     });
-
     if (!best || bestScore < 0.15) {
-      return null;
+      return null;  // कोई उपयुक्त मिलान नहीं मिला
     }
-
     return {
       content: best.content,
       relevance: Number(bestScore.toFixed(2)),
@@ -121,9 +83,6 @@
     };
   }
 
-  /* ===============================
-     PUBLIC API
-     =============================== */
   window.KnowledgeAnswerEngine = Object.freeze({
     retrieve,
     status() {
@@ -135,5 +94,4 @@
       };
     }
   });
-
 })();
