@@ -1,12 +1,7 @@
 /* =========================================================
    core/ReadingMode.js
    Role: Reading Mode Controller (Article / Long Text)
-   Purpose:
-   - पूरा लेख एक context में पढ़ना
-   - Reading Mode के दौरान reasoning trigger न हो
-   - लेख समाप्त होने पर Reasoning Mode में लौटना
    ========================================================= */
-
 (function (window) {
   "use strict";
 
