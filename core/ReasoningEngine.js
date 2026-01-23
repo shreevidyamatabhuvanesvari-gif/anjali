@@ -1,13 +1,7 @@
 /* =========================================================
    core/ReasoningEngine.js
    Role: Human-like Offline Reasoning Engine
-   GUARANTEE:
-   - Uses saved KnowledgeBase correctly
-   - No impact on STT / TTS
-   - Keyword-based flexible matching
-   - WORKING BEHAVIOR RESTORED
    ========================================================= */
-
 (function (window) {
   "use strict";
 
@@ -34,7 +28,7 @@
   /* ---------- MAIN REASONING ---------- */
   async function reason(questionText) {
     if (!questionText) {
-      return "मैं आपकी बात समझ नहीं पाई।";
+      return { text: "मैं आपकी बात समझ नहीं पाई।" };
     }
 
     let all;
@@ -42,16 +36,16 @@
       await KnowledgeBase.init();
       all = await KnowledgeBase.getAll();
     } catch (_) {
-      return "मेरे ज्ञान तक पहुँचने में समस्या आ रही है।";
+      return { text: "मेरे ज्ञान तक पहुँचने में समस्या आ रही है।" };
     }
 
     if (!Array.isArray(all) || all.length === 0) {
-      return "मेरे पास अभी कोई सुरक्षित ज्ञान नहीं है।";
+      return { text: "मेरे पास अभी कोई सुरक्षित ज्ञान नहीं है।" };
     }
 
     const qWords = words(questionText);
     if (qWords.length === 0) {
-      return "मैं आपकी बात स्पष्ट रूप से समझ नहीं पाई।";
+      return { text: "मैं आपकी बात स्पष्ट रूप से समझ नहीं पाई।" };
     }
 
     let bestMatch = null;
@@ -69,20 +63,18 @@
       }
 
       const score = matchCount / kWords.length;
-
       if (score > bestScore) {
         bestScore = score;
         bestMatch = item;
       }
     }
 
-    /* ---------- DECISION (FIXED) ---------- */
-    // 🔧 ROOT FIX: realistic Hindi keyword threshold
+    // अगर स्कोर 0.25 से अधिक हुआ तो उत्तर दें
     if (bestMatch && bestScore >= 0.25) {
-      return bestMatch.answer;
+      return { text: bestMatch.answer };
     }
 
-    return "इस प्रश्न का उत्तर मेरे ज्ञान में अभी उपलब्ध नहीं है।";
+    return { text: "इस प्रश्न का उत्तर मेरे ज्ञान में अभी उपलब्ध नहीं है।" };
   }
 
   /* ---------- EXPOSE ---------- */
@@ -92,6 +84,5 @@
     configurable: false
   });
 
-  console.log("🧠 ReasoningEngine ready (corrected & stable)");
-
+  console.log("🧠 ReasoningEngine ready (fixed Hindi keyword threshold)");
 })(window);
