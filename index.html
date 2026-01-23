@@ -97,21 +97,18 @@
 
   <div class="footer">Foundation • Stage-1</div>
 
-  <!-- ========== CORE ========== -->
-  <script src="core/AnjaliCore.js"></script>
-  <script src="core/KnowledgeBase.js"></script>
-<!-- ========== CORE ========== -->
+  <!-- ========== CORE SYSTEM ========== -->
+<script src="core/AnjaliCore.js"></script>
 <script src="core/ContextMemory.js"></script>
 <script src="learning/ExperienceMemory.js"></script>
 
-<!-- ========== KNOWLEDGE ========== -->
-<script src="answer/RawKnowledgeReader.js"></script>
+<!-- ========== KNOWLEDGE BASE (PRIMARY) ========== -->
+<script src="core/KnowledgeBase.js"></script>
 
-<!-- पारंपरिक उत्तर इंजन उपयोग के लिए, निम्नलिखित लाइन का उपयोग करें और ऊपर की KnowledgeAnswerEngine लाइन को हटाएँ: -->
- <script src="core/AnswerEngine.js"></script>
+<!-- ========== ANSWER + REASONING (PRIMARY PIPELINE) ========== -->
+<script src="core/KnowledgeAnswerEngine.js"></script>
 <script src="core/ReasoningEngine.js"></script>
-
-<!-- ========== RESPONSE ========== -->
+<script src="core/ResponseEngine.js"></script>
 
 <!-- ========== VOICE ========== -->
 <script src="voice/tts.js"></script>
