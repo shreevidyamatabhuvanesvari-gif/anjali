@@ -1,5 +1,5 @@
 /* ==========================================================
-   KnowledgeAnswerEngine — FINAL FIXED CORE
+   KnowledgeAnswerEngine — FINAL CORRECTED CORE
    PURPOSE:
    Read ALL saved Q/A from KnowledgeBase (IndexedDB),
    build searchable index, and return correct answers.
@@ -29,7 +29,7 @@
   }
 
   /* ===============================
-     LOAD ALL KNOWLEDGE (REAL FIX)
+     LOAD ALL KNOWLEDGE (FIXED)
      =============================== */
   async function loadKnowledge() {
     if (initialized) return;
@@ -37,23 +37,23 @@
 
     if (
       !window.KnowledgeBase ||
-      typeof KnowledgeBase.dump !== "function"
+      typeof KnowledgeBase.getAll !== "function"
     ) {
-      console.warn("⚠️ KnowledgeBase.dump() उपलब्ध नहीं");
+      console.warn("⚠️ KnowledgeBase.getAll() उपलब्ध नहीं");
       return;
     }
 
     let all = [];
 
     try {
-      all = await KnowledgeBase.dump(); // ✅ CRITICAL FIX
+      all = await KnowledgeBase.getAll(); // ✅ CORRECT API
     } catch (e) {
-      console.error("❌ Knowledge dump failed", e);
+      console.error("❌ Knowledge getAll failed", e);
       return;
     }
 
     if (!Array.isArray(all)) {
-      console.warn("⚠️ Knowledge dump invalid");
+      console.warn("⚠️ Knowledge data invalid");
       return;
     }
 
@@ -131,7 +131,7 @@
         indexed: knowledgeIndex.length,
         initialized,
         role: "knowledge-answer-engine",
-        level: "4.x-fixed"
+        level: "4.x-corrected"
       };
     }
   });
