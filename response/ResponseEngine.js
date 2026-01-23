@@ -1,3 +1,6 @@
+/* =========================================================
+   ResponseEngine.js — निर्णय को आवाज़ या अन्य प्रतिक्रिया में बदलना
+   ========================================================= */
 (function () {
   "use strict";
 
@@ -34,7 +37,6 @@
     });
     if (ERROR_LOG.length > CONFIG.maxErrorLog) ERROR_LOG.shift();
   }
-
   function safeExecute(fn, source) {
     try {
       return fn();
@@ -79,7 +81,6 @@
     responseQueue.push(decision);
     processQueue();
   }
-
   function processQueue() {
     if (speaking) return;
     const next = responseQueue.shift();
@@ -93,7 +94,6 @@
   function speak(decision) {
     if (speaking) return;
 
-    // 🔓 REMOVE HARD BLOCK: AnjaliCore OPTIONAL
     if (
       window.AnjaliCore &&
       typeof window.AnjaliCore.isActive === "function" &&
@@ -102,7 +102,6 @@
       recordError("ANJALI_INACTIVE", "Fallback mode used");
     }
 
-    // 🔊 TTS fallback safety
     if (!window.TTS || typeof window.TTS.speak !== "function") {
       recordError("TTS_MISSING", "Speech skipped, text delivered logically");
       speaking = false;
@@ -111,18 +110,14 @@
     }
 
     speaking = true;
-
     lastResponse = {
       text: decision.text,
       confidence: decision.confidence ?? null,
       at: new Date().toISOString()
     };
-
     persistResponse(lastResponse);
 
     let completed = false;
-
-    // ⏱️ Deadlock guard
     const watchdog = setTimeout(() => {
       if (!completed) {
         recordError("TTS_TIMEOUT", "Forced release");
@@ -153,16 +148,13 @@
       ) {
         return decision;
       }
-
       const emotionMap = ContextEmotionMapper.map(userText) || {};
       let prefix = "";
-
       if (window.RespectTrigger?.shouldTrigger?.(emotionMap, userText)) {
         prefix = "गरिमा के साथ कहूँ तो— ";
       } else if (window.EmpathyTrigger?.shouldTrigger?.(emotionMap)) {
         prefix = "मैं आपकी बात समझ रही हूँ। ";
       }
-
       return {
         ...decision,
         text: (prefix + decision.text).trim()
@@ -178,15 +170,12 @@
      ========================= */
   function applyEthicalFraming(text, report) {
     if (!report || !Array.isArray(report.flags)) return text;
-
     let prefix = "";
-
     if (report.flags.includes("self-harm-risk")) {
       prefix = "आपकी सुरक्षा सबसे महत्वपूर्ण है। ";
     } else if (report.flags.includes("violence-risk")) {
       prefix = "शांति और संयम के साथ— ";
     }
-
     return (prefix + text).trim();
   }
 
@@ -198,9 +187,7 @@
       recordError("INVALID_DECISION", decision);
       return;
     }
-
     let finalDecision = { ...decision };
-
     if (
       window.ModuleEthicalEmotionEngine &&
       typeof ModuleEthicalEmotionEngine.evaluate === "function"
@@ -208,7 +195,6 @@
       const report = ModuleEthicalEmotionEngine.evaluate(userText, {
         decisionText: decision.text
       });
-
       if (report && Array.isArray(report.flags) && report.flags.length) {
         finalDecision.text = applyEthicalFraming(
           finalDecision.text,
@@ -216,15 +202,11 @@
         );
       }
     }
-
     finalDecision = enhanceWithEmotion(finalDecision, userText);
-
-    // अंतिम सुरक्षा: text खाली न हो
     if (!finalDecision.text || !finalDecision.text.trim()) {
       recordError("EMPTY_FINAL_TEXT", finalDecision);
       return;
     }
-
     enqueueDecision(finalDecision);
   }
 
@@ -251,7 +233,7 @@
       onDecision,
       getStatus,
       level: "4.x-stable",
-      purpose: "knowledge → decision → guaranteed output"
+      purpose: "knowledge → decision → output"
     }),
     writable: false
   });
