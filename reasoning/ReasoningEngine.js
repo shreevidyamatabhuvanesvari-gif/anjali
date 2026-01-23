@@ -1,47 +1,30 @@
 /* ==========================================================
-   ReasoningEngine — FINAL CORRECTED CORE
-   ROLE:
-   Take user input, fetch knowledge (async-safe),
-   decide answer, and hand over to ResponseEngine.
+   ReasoningEngine.js — प्रश्न पर विचार-विमर्श और उत्तर निर्णय
    ========================================================== */
-
 (function () {
   "use strict";
 
   let running = false;
 
-  /* ===============================
-     MAIN PROCESS
-     =============================== */
   async function process(input) {
     if (running) return;
     running = true;
-
     try {
       const text = String(input || "").trim();
       if (!text) return;
-
       let knowledge = null;
-
-      /* ===============================
-         KNOWLEDGE RETRIEVAL (ASYNC-SAFE)
-         =============================== */
       if (
         window.KnowledgeAnswerEngine &&
         typeof KnowledgeAnswerEngine.retrieve === "function"
       ) {
         try {
-          // ✅ CRITICAL FIX: await added
+          // ⏩ CRITICAL: await लगाया गया है
           knowledge = await KnowledgeAnswerEngine.retrieve(text);
         } catch (e) {
           console.warn("⚠️ Knowledge retrieve failed", e);
           knowledge = null;
         }
       }
-
-      /* ===============================
-         DECISION FORMATION
-         =============================== */
       const decision = {
         text:
           knowledge && knowledge.content
@@ -57,10 +40,6 @@
             : "fallback",
         decidedAt: Date.now()
       };
-
-      /* ===============================
-         OUTPUT DISPATCH
-         =============================== */
       if (
         window.ResponseEngine &&
         typeof window.ResponseEngine.onDecision === "function"
@@ -69,10 +48,8 @@
       } else {
         console.warn("⚠️ ResponseEngine unavailable");
       }
-
     } catch (e) {
       console.error("❌ ReasoningEngine.process ERROR", e);
-
       if (
         window.ResponseEngine &&
         typeof ResponseEngine.onDecision === "function"
@@ -87,11 +64,7 @@
     }
   }
 
-  /* ===============================
-     PUBLIC EXPOSURE
-     =============================== */
   window.ReasoningEngine = Object.freeze({
     process
   });
-
 })();
