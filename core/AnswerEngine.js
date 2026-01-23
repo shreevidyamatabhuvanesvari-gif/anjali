@@ -3,7 +3,6 @@
    Role: Read + Match + Balanced Answer Engine (OFFLINE)
    Safe: Does NOT modify existing systems
    ========================================================= */
-
 (function (window) {
   "use strict";
 
