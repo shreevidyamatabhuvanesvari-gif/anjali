@@ -1,12 +1,6 @@
 /* =========================================================
    voice/stt.js
    Role: PURE Speech-To-Text Driver (LEVEL-3 CLEAN)
-   RESPONSIBILITY:
-   - Voice → Text only
-   - No answering
-   - No fallback replies
-   - No TTS speak
-   - Pass transcript forward safely
    ========================================================= */
 
 (function (window) {
@@ -14,7 +8,6 @@
 
   const SpeechRecognition =
     window.SpeechRecognition || window.webkitSpeechRecognition;
-
   if (!SpeechRecognition) {
     console.error("STT not supported in this browser");
     return;
@@ -34,7 +27,7 @@
 
   /* ==================================================
      ⏱️ IDLE TIMER
-     ================================================== */
+  ================================================== */
   function resetIdleTimer() {
     clearTimeout(idleTimer);
     idleTimer = setTimeout(() => {
@@ -46,8 +39,8 @@
 
   /* ==================================================
      🎤 START LISTENING
-     ================================================== */
-  function start() {
+  ================================================== */
+  function startListening() {
     if (active || !listening) return;
     try {
       recognition.start();
@@ -59,53 +52,45 @@
 
   /* ==================================================
      🎧 RESULT (USER SPOKE)
-     ================================================== */
+  ================================================== */
   recognition.onresult = async function (event) {
     active = false;
 
     if (!event.results || !event.results[0] || !event.results[0][0]) {
-      if (listening) start();
+      if (listening) startListening();
       return;
     }
 
     const transcript = event.results[0][0].transcript.trim();
     if (!transcript) {
-      if (listening) start();
+      if (listening) startListening();
       return;
     }
 
-    /* -------------------------------
-       DUPLICATE GUARD
-       ------------------------------- */
+    // Duplicate guard
     if (transcript === lastUserQuestion) {
       resetIdleTimer();
-      if (listening) start();
+      if (listening) startListening();
       return;
     }
     lastUserQuestion = transcript;
 
-    /* -------------------------------
-       NOISE / SHORT INPUT FILTER
-       ------------------------------- */
+    // Noise/short input filter
     if (transcript.length < 4) {
       resetIdleTimer();
-      if (listening) start();
+      if (listening) startListening();
       return;
     }
 
     console.log("👂 Heard:", transcript);
     resetIdleTimer();
 
-    /* -------------------------------
-       USER BARGE-IN
-       ------------------------------- */
+    // User barge-in: stop any TTS in progress
     if (window.TTS && typeof window.TTS.stop === "function") {
       TTS.stop();
     }
 
-    /* -------------------------------
-       USER STOP COMMAND
-       ------------------------------- */
+    // User stop command detection
     const stopWords = ["अब बात बंद", "बाद में बात", "चुप हो जाओ"];
     if (stopWords.some(w => transcript.includes(w))) {
       listening = false;
@@ -115,27 +100,28 @@
 
     /* ==================================================
        👉 PASS TRANSCRIPT FOR DECISION
-       STT DOES NOT ANSWER
-       ================================================== */
+    ================================================== */
     try {
-      if (window.ReasoningEngine && window.ResponseEngine) {
+      let answerText;
+      // प्राथमिकता: AnswerEngine (जिसे KnowledgeAnswerEngine भी कहा गया हो)
+      if (window.AnswerEngine && typeof AnswerEngine.answer === "function") {
+        answerText = await AnswerEngine.answer(transcript);
+      } else if (window.ReasoningEngine && typeof ReasoningEngine.reason === "function") {
         const decision = await ReasoningEngine.reason(transcript);
+        // अगर decision ऑब्जेक्ट है तो text निकालें, नहीं तो fallback
+        answerText = decision.text || (typeof decision === 'string' ? decision : "");
+      }
 
-        if (decision && decision.text) {
-          ResponseEngine.onDecision(decision, transcript);
-        } else {
-          ResponseEngine.onDecision(
-            { text: "मैं इस समय उत्तर नहीं दे पा रही हूँ।" },
-            transcript
-          );
-        }
-      } else if (window.ResponseEngine) {
+      if (answerText) {
+        ResponseEngine.onDecision({ text: answerText }, transcript);
+      } else {
         ResponseEngine.onDecision(
-          { text: "प्रणाली अभी तैयार नहीं है।" },
+          { text: "मैं इस समय उत्तर नहीं दे पा रही हूँ।" },
           transcript
         );
       }
     } catch (e) {
+      console.error("STT processing error:", e);
       if (window.ResponseEngine) {
         ResponseEngine.onDecision(
           { text: "मुझे उत्तर समझने में क्षणिक कठिनाई हुई।" },
@@ -144,57 +130,37 @@
       }
     }
 
-    /* -------------------------------
-       PASSIVE MEMORY (OPTIONAL)
-       ------------------------------- */
-    setTimeout(() => {
-      try {
-        if (window.ContextMemory) {
-          ContextMemory.addUserUtterance(transcript);
-        }
-      } catch (_) {}
-    }, 0);
-
-    /* -------------------------------
-       CONTINUOUS LOOP
-       ------------------------------- */
-    waitForSpeechEnd(() => {
-      if (listening) start();
-    });
-  };
-
-  /* ==================================================
-     🔚 END / ERROR (SELF-HEAL)
-     ================================================== */
-  recognition.onend = function () {
-    active = false;
-    if (listening) setTimeout(start, 300);
-  };
-
-  recognition.onerror = function () {
-    active = false;
-    if (listening) setTimeout(start, 600);
-  };
-
-  /* ==================================================
-     🧰 UTILITY
-     ================================================== */
-  function waitForSpeechEnd(cb) {
-    const i = setInterval(() => {
-      if (!(window.TTS && TTS.isSpeaking())) {
-        clearInterval(i);
-        cb();
+    /* ================= Memory (passive) ================= */
+    try {
+      if (window.ContextMemory) {
+        ContextMemory.addUserUtterance(transcript);
       }
-    }, 120);
-  }
+    } catch (_) {}
+
+    /* ==================================================
+       🔚 CONTINUOUS LOOP
+    ================================================== */
+    recognition.onend = function () {
+      active = false;
+      if (listening) setTimeout(startListening, 300);
+    };
+
+    recognition.onerror = function () {
+      active = false;
+      if (listening) setTimeout(startListening, 600);
+    };
+
+    // Continue listening if still active
+    if (listening) startListening();
+  };
 
   /* ==================================================
-     🌐 EXPOSE
-     ================================================== */
+     🔚 END / START CONTROL
+  ================================================== */
   window.STT = Object.freeze({
     start() {
       listening = true;
-      start();
+      startListening();
     },
     stop() {
       listening = false;
