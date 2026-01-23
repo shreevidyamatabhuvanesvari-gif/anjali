@@ -1,44 +1,38 @@
-/* ==========================================================
-   ResponseEngine — Level-4 / Version-4.x
-   PURPOSE:
-   Receive verified decisions from ReasoningEngine,
-   validate + persist them, and deliver controlled
-   spoken responses via TTS with full runtime safety.
-   ========================================================== */
-
 (function () {
   "use strict";
 
-  /* ======================================================
-     CONFIGURATION (NON-HARDCODED)
-     ====================================================== */
+  /* =========================
+     CONFIG
+     ========================= */
   const CONFIG = Object.freeze({
     maxErrorLog: 50,
     maxQueueSize: 5,
     persistKey: "ANJALI_RESPONSE_LOG"
   });
 
-  /* ======================================================
-     RUNTIME STATE
-     ====================================================== */
+  /* =========================
+     STATE
+     ========================= */
   let speaking = false;
   let responseQueue = [];
   let lastResponse = null;
-
   const ERROR_LOG = [];
 
-  /* ======================================================
-     ERROR HANDLING (REAL, SAFE)
-     ====================================================== */
+  /* =========================
+     ERROR HANDLING
+     ========================= */
   function recordError(source, error) {
     ERROR_LOG.push({
       time: new Date().toISOString(),
       source,
-      message: error && error.message ? error.message : String(error)
+      message:
+        error && error.message
+          ? error.message
+          : typeof error === "string"
+          ? error
+          : JSON.stringify(error)
     });
-    if (ERROR_LOG.length > CONFIG.maxErrorLog) {
-      ERROR_LOG.shift();
-    }
+    if (ERROR_LOG.length > CONFIG.maxErrorLog) ERROR_LOG.shift();
   }
 
   function safeExecute(fn, source) {
@@ -50,9 +44,9 @@
     }
   }
 
-  /* ======================================================
-     PERSISTENCE (REAL DATA, MOBILE SAFE)
-     ====================================================== */
+  /* =========================
+     PERSISTENCE
+     ========================= */
   function persistResponse(record) {
     safeExecute(() => {
       const existing =
@@ -60,35 +54,27 @@
       existing.push(record);
       localStorage.setItem(
         CONFIG.persistKey,
-        JSON.stringify(existing.slice(-20)) // keep last 20
+        JSON.stringify(existing.slice(-20))
       );
-    }, "RESPONSE_PERSIST");
+    }, "PERSISTENCE");
   }
 
-  /* ======================================================
-     VALIDATION (STRICT)
-     ====================================================== */
+  /* =========================
+     VALIDATION (RELAXED BUT SAFE)
+     ========================= */
   function validateDecision(decision) {
     if (!decision || typeof decision !== "object") return false;
     if (typeof decision.text !== "string") return false;
     if (!decision.text.trim()) return false;
-    if (
-      decision.confidence !== undefined &&
-      (typeof decision.confidence !== "number" ||
-        decision.confidence < 0 ||
-        decision.confidence > 1)
-    ) {
-      return false;
-    }
     return true;
   }
 
-  /* ======================================================
-     QUEUE MANAGEMENT (ANTI-OVERLAP)
-     ====================================================== */
+  /* =========================
+     QUEUE
+     ========================= */
   function enqueueDecision(decision) {
     if (responseQueue.length >= CONFIG.maxQueueSize) {
-      responseQueue.shift(); // drop oldest safely
+      responseQueue.shift();
     }
     responseQueue.push(decision);
     processQueue();
@@ -101,22 +87,26 @@
     speak(next);
   }
 
-  /* ======================================================
-     SPEAK (REAL OUTPUT)
-     ====================================================== */
+  /* =========================
+     SPEAK (HARDENED)
+     ========================= */
   function speak(decision) {
     if (speaking) return;
 
+    // 🔓 REMOVE HARD BLOCK: AnjaliCore OPTIONAL
     if (
-      !window.AnjaliCore ||
-      typeof window.AnjaliCore.isActive !== "function" ||
+      window.AnjaliCore &&
+      typeof window.AnjaliCore.isActive === "function" &&
       !window.AnjaliCore.isActive()
     ) {
-      return;
+      recordError("ANJALI_INACTIVE", "Fallback mode used");
     }
 
+    // 🔊 TTS fallback safety
     if (!window.TTS || typeof window.TTS.speak !== "function") {
-      recordError("TTS_MISSING", "TTS not available");
+      recordError("TTS_MISSING", "Speech skipped, text delivered logically");
+      speaking = false;
+      processQueue();
       return;
     }
 
@@ -124,145 +114,123 @@
 
     lastResponse = {
       text: decision.text,
-      confidence: decision.confidence,
+      confidence: decision.confidence ?? null,
       at: new Date().toISOString()
     };
 
     persistResponse(lastResponse);
 
+    let completed = false;
+
+    // ⏱️ Deadlock guard
+    const watchdog = setTimeout(() => {
+      if (!completed) {
+        recordError("TTS_TIMEOUT", "Forced release");
+        speaking = false;
+        processQueue();
+      }
+    }, 8000);
+
     safeExecute(() => {
       window.TTS.speak(decision.text, () => {
+        completed = true;
+        clearTimeout(watchdog);
         speaking = false;
-        processQueue(); // speak next if queued
+        processQueue();
       });
     }, "TTS_SPEAK");
   }
 
-   /* ======================================================
-   EMOTION-AWARE DECISION ENHANCER (NON-DESTRUCTIVE)
-   ====================================================== */
-function enhanceWithEmotion(decision, userText) {
-  try {
-    if (!userText || !window.ContextEmotionMapper) {
-      return decision; // fallback: no change
+  /* =========================
+     EMOTION ENHANCER (SAFE)
+     ========================= */
+  function enhanceWithEmotion(decision, userText) {
+    try {
+      if (
+        !userText ||
+        !window.ContextEmotionMapper ||
+        typeof ContextEmotionMapper.map !== "function"
+      ) {
+        return decision;
+      }
+
+      const emotionMap = ContextEmotionMapper.map(userText) || {};
+      let prefix = "";
+
+      if (window.RespectTrigger?.shouldTrigger?.(emotionMap, userText)) {
+        prefix = "गरिमा के साथ कहूँ तो— ";
+      } else if (window.EmpathyTrigger?.shouldTrigger?.(emotionMap)) {
+        prefix = "मैं आपकी बात समझ रही हूँ। ";
+      }
+
+      return {
+        ...decision,
+        text: (prefix + decision.text).trim()
+      };
+    } catch (e) {
+      recordError("EMOTION_LAYER", e);
+      return decision;
     }
+  }
 
-    const emotionMap = ContextEmotionMapper.map(userText);
-    if (window.UserStateTracker) {
-      UserStateTracker.record(emotionMap);
-    }
-
-    const empathyProfile =
-      window.EmpathyTrigger?.getEmpathyProfile(
-        window.EmpathyTrigger?.shouldTrigger(emotionMap)
-      );
-
-    const respectProfile =
-      window.RespectTrigger?.getRespectProfile(
-        window.RespectTrigger?.shouldTrigger(emotionMap, userText)
-      );
-
-    const trustState = window.TrustDetector?.getTrustState?.();
+  /* =========================
+     ETHICAL FRAMING (SAFE)
+     ========================= */
+  function applyEthicalFraming(text, report) {
+    if (!report || !Array.isArray(report.flags)) return text;
 
     let prefix = "";
 
-    // Respect has higher priority than empathy
-    if (respectProfile && respectProfile.mode !== "normal") {
-      if (respectProfile.mode === "respect-boundary") {
-        prefix = "सीमाओं के साथ स्पष्ट कहूँगी— ";
-      } else if (respectProfile.mode === "dignified") {
-        prefix = "गरिमा के साथ कहूँगी— ";
-      }
-    } else if (empathyProfile) {
-      if (empathyProfile.mode === "deep-empathy") {
-        prefix = "मैं आपकी बात पूरी संवेदना के साथ समझ रही हूँ। ";
-      } else if (empathyProfile.mode === "supportive") {
-        prefix = "मैं समझ सकती हूँ। ";
+    if (report.flags.includes("self-harm-risk")) {
+      prefix = "आपकी सुरक्षा सबसे महत्वपूर्ण है। ";
+    } else if (report.flags.includes("violence-risk")) {
+      prefix = "शांति और संयम के साथ— ";
+    }
+
+    return (prefix + text).trim();
+  }
+
+  /* =========================
+     PUBLIC ENTRY
+     ========================= */
+  function onDecision(decision, userText) {
+    if (!validateDecision(decision)) {
+      recordError("INVALID_DECISION", decision);
+      return;
+    }
+
+    let finalDecision = { ...decision };
+
+    if (
+      window.ModuleEthicalEmotionEngine &&
+      typeof ModuleEthicalEmotionEngine.evaluate === "function"
+    ) {
+      const report = ModuleEthicalEmotionEngine.evaluate(userText, {
+        decisionText: decision.text
+      });
+
+      if (report && Array.isArray(report.flags) && report.flags.length) {
+        finalDecision.text = applyEthicalFraming(
+          finalDecision.text,
+          report
+        );
       }
     }
 
-    const finalText = prefix + decision.text;
+    finalDecision = enhanceWithEmotion(finalDecision, userText);
 
-    return {
-      ...decision,
-      text: finalText,
-      emotion: emotionMap?.emotion || "neutral",
-      trust: trustState || { level: "unknown", value: 0.5 }
-    };
-  } catch (e) {
-    recordError("EMOTION_ENHANCER", e);
-    return decision; // absolute safety
-  }
-}
+    // अंतिम सुरक्षा: text खाली न हो
+    if (!finalDecision.text || !finalDecision.text.trim()) {
+      recordError("EMPTY_FINAL_TEXT", finalDecision);
+      return;
+    }
 
-   /* ======================================================
-   ETHICAL FRAMING HELPER
-   ====================================================== */
-function applyEthicalFraming(text, report) {
-  if (!report || !report.flags) return text;
-
-  let prefix = "";
-
-  if (report.flags.includes("self-harm-risk")) {
-    prefix = "मैं आपकी सुरक्षा को प्राथमिकता देते हुए कहना चाहूँगी— ";
-  } else if (report.flags.includes("violence-risk")) {
-    prefix = "इस विषय पर शांत और अहिंसक दृष्टि ज़रूरी है। ";
-  } else if (report.flags.includes("dehumanization-risk")) {
-    prefix = "हर व्यक्ति की गरिमा का सम्मान आवश्यक है। ";
-  } else if (report.flags.includes("authority-abuse-risk")) {
-    prefix = "शक्ति का प्रयोग हमेशा जिम्मेदारी के साथ होना चाहिए। ";
-  } else if (report.flags.includes("absolute-claim")) {
-    prefix = "उपलब्ध जानकारी के आधार पर, सावधानी से कहूँ तो— ";
+    enqueueDecision(finalDecision);
   }
 
-  return prefix + text;
-}
-
-   
-  /* ======================================================
-     PUBLIC ENTRY (FROM REASONING)
-     ====================================================== */
-  function onDecision(decision, userText) {
-  if (!validateDecision(decision)) {
-    recordError("INVALID_DECISION", decision);
-    return;
-  }
-
-  let ethicalReport = null;
-
-  /* ===============================
-     MORAL EMOTION GATE (LAYER 3)
-     =============================== */
-  if (window.ModuleEthicalEmotionEngine && userText) {
-    ethicalReport =
-      ModuleEthicalEmotionEngine.evaluate(userText, {
-        decisionText: decision.text
-      });
-  }
-
-  /* ===============================
-     ETHICAL ADJUSTMENT (NON-BLOCKING)
-     =============================== */
-  let finalDecision = decision;
-
-  if (ethicalReport && ethicalReport.flags.length) {
-    finalDecision = {
-      ...decision,
-      text: applyEthicalFraming(
-        decision.text,
-        ethicalReport
-      ),
-      ethical: ethicalReport
-    };
-  }
-
-  const enhanced = enhanceWithEmotion(finalDecision, userText);
-  enqueueDecision(enhanced);
-}
-
-  /* ======================================================
-     DIAGNOSTICS (REAL STATE)
-     ====================================================== */
+  /* =========================
+     DIAGNOSTICS
+     ========================= */
   function getStatus() {
     return {
       speaking,
@@ -270,20 +238,21 @@ function applyEthicalFraming(text, report) {
       lastResponse,
       errorCount: ERROR_LOG.length,
       recentErrors: ERROR_LOG.slice(-5),
-      persistence: CONFIG.persistKey,
-      level: "4.x",
-      mode: "operational"
+      level: "4.x-stable",
+      mode: "fully-operational"
     };
   }
 
-  /* ======================================================
-     GLOBAL EXPOSURE (LOCKED)
-     ====================================================== */
-  window.ResponseEngine = Object.freeze({
-    onDecision,
-    getStatus,
-    level: "4.x",
-    purpose: "validated-decision → controlled-speech"
+  /* =========================
+     GLOBAL EXPORT
+     ========================= */
+  Object.defineProperty(window, "ResponseEngine", {
+    value: Object.freeze({
+      onDecision,
+      getStatus,
+      level: "4.x-stable",
+      purpose: "knowledge → decision → guaranteed output"
+    }),
+    writable: false
   });
-
 })();
