@@ -1,24 +1,13 @@
 /* ==========================================================
-   ExperienceMemory.js — Level-4 / FINAL
-   ROLE:
-   Living emotional + contextual memory for Anjali.
-   Stores not just words, but meaning, tone, and relationship.
+   ExperienceMemory.js — भावात्मक और सामयिक मेमोरी
    ========================================================== */
-
 (function (window) {
   "use strict";
 
-  /* ===============================
-     INTERNAL STATE
-     =============================== */
   const MEMORY_KEY = "ANJALI_EXPERIENCE_MEMORY_V4";
   const MAX_RECORDS = 1200;
-
   let records = [];
 
-  /* ===============================
-     LOAD / SAVE
-     =============================== */
   function load() {
     try {
       const raw = localStorage.getItem(MEMORY_KEY);
@@ -30,22 +19,16 @@
       records = [];
     }
   }
-
   function save() {
     try {
       localStorage.setItem(MEMORY_KEY, JSON.stringify(records));
     } catch (_) {}
   }
-
   load();
 
-  /* ===============================
-     UTILITIES
-     =============================== */
   function now() {
     return Date.now();
   }
-
   function normalize(text) {
     return String(text || "")
       .toLowerCase()
@@ -53,38 +36,27 @@
       .replace(/\s+/g, " ")
       .trim();
   }
-
   function extractKeywords(text) {
     return normalize(text)
       .split(" ")
       .filter(w => w.length > 2)
       .slice(0, 10);
   }
-
   function detectTone(text) {
     const t = text.toLowerCase();
-
     if (t.includes("दुख") || t.includes("रो") || t.includes("खो") || t.includes("याद"))
       return "sad";
-
     if (t.includes("खुश") || t.includes("अच्छा") || t.includes("हँस"))
       return "warm";
-
     if (t.includes("क्यों") || t.includes("कैसे") || t.includes("समझ"))
       return "thinking";
-
     if (t.includes("अंजली"))
       return "attachment";
-
     return "neutral";
   }
 
-  /* ===============================
-     STORE EXPERIENCE
-     =============================== */
   function record(userText, anjaliText) {
     if (!userText) return;
-
     const entry = {
       id: "E-" + now() + "-" + Math.floor(Math.random() * 9999),
       time: now(),
@@ -94,23 +66,16 @@
       tone: detectTone(userText),
       importance: userText.includes("अंजली") ? 1.0 : 0.6
     };
-
     records.push(entry);
-
     if (records.length > MAX_RECORDS) {
       records = records.slice(records.length - MAX_RECORDS);
     }
-
     save();
   }
 
-  /* ===============================
-     QUERY MEMORY
-     =============================== */
   function findSimilar(queryText) {
     const qk = extractKeywords(queryText);
     if (!qk.length) return [];
-
     return records
       .map(r => {
         let score = 0;
@@ -132,21 +97,15 @@
       attachment: 0,
       neutral: 0
     };
-
     records.forEach(r => {
       if (summary[r.tone] !== undefined) summary[r.tone]++;
     });
-
     return summary;
   }
 
-  /* ===============================
-     PROVIDE TO ETHOS / REASONING
-     =============================== */
   function getContextForEthos(query) {
     const similar = findSimilar(query);
     const emotions = emotionalSummary();
-
     return {
       similarMemories: similar.map(r => ({
         user: r.user,
@@ -158,9 +117,6 @@
     };
   }
 
-  /* ===============================
-     PUBLIC API
-     =============================== */
   window.ExperienceMemory = Object.freeze({
     record,
     findSimilar,
@@ -174,5 +130,4 @@
       };
     }
   });
-
 })(window);
