@@ -1,70 +1,66 @@
-/* ==========================================================
-   ReasoningEngine.js — प्रश्न पर विचार-विमर्श और उत्तर निर्णय
-   ========================================================== */
-(function () {
-  "use strict";
-
-  let running = false;
-
-  async function process(input) {
-    if (running) return;
-    running = true;
-    try {
-      const text = String(input || "").trim();
-      if (!text) return;
-      let knowledge = null;
-      if (
-        window.KnowledgeAnswerEngine &&
-        typeof KnowledgeAnswerEngine.retrieve === "function"
-      ) {
-        try {
-          // ⏩ CRITICAL: await लगाया गया है
-          knowledge = await KnowledgeAnswerEngine.retrieve(text);
-        } catch (e) {
-          console.warn("⚠️ Knowledge retrieve failed", e);
-          knowledge = null;
-        }
-      }
-      const decision = {
-        text:
-          knowledge && knowledge.content
-            ? knowledge.content
-            : "मैं अभी इस प्रश्न का उत्तर सीख रही हूँ।",
-        confidence:
-          knowledge && typeof knowledge.relevance === "number"
-            ? Math.min(0.9, knowledge.relevance)
-            : 0.35,
-        source:
-          knowledge && knowledge.source
-            ? knowledge.source
-            : "fallback",
-        decidedAt: Date.now()
-      };
-      if (
-        window.ResponseEngine &&
-        typeof window.ResponseEngine.onDecision === "function"
-      ) {
-        ResponseEngine.onDecision(decision, text);
-      } else {
-        console.warn("⚠️ ResponseEngine unavailable");
-      }
-    } catch (e) {
-      console.error("❌ ReasoningEngine.process ERROR", e);
-      if (
-        window.ResponseEngine &&
-        typeof ResponseEngine.onDecision === "function"
-      ) {
-        ResponseEngine.onDecision(
-          { text: "मुझे उत्तर बनाने में क्षणिक कठिनाई हुई।" },
-          input
-        );
-      }
-    } finally {
-      running = false;
+class ReasoningEngine {
+    constructor() {
+        // पर्यायवाची शब्दकोश: यहाँ मुख्य शब्दों के लिए उनके पर्यायवाची (synonyms) निर्धारित करें
+        this.synonyms = {
+            "राजधानी": ["मुख्य शहर"],
+            "बड़ा": ["विशाल", "महान"],
+            "सागर": ["समुद्र"]
+        };
     }
-  }
 
-  window.ReasoningEngine = Object.freeze({
-    process
-  });
-})();
+    // normalize: टेक्स्ट को लोअरकेस में बदलें, विराम चिह्न हटा दें, और शब्दों में विभाजित करें
+    normalize(text) {
+        // लोअरकेस में परिवर्तन
+        text = text.toLowerCase();
+        // विराम चिह्न (punctuation) को हटाना (केवल अक्षर और संख्या छोड़कर)
+        text = text.replace(/[^\p{L}\p{N}\s]/gu, "");
+        // एक से अधिक स्पेस को एक स्पेस में बदलें और लीडिंग/ट्रेलिंग स्पेस हटाएं
+        text = text.replace(/\s+/g, " ").trim();
+        // स्पेस पर विभाजन करके टोकन (शब्दों) की सूची लौटाएँ
+        return text.split(" ");
+    }
+
+    // किसी शब्द के पर्यायवाची (synonyms) प्राप्त करें
+    getSynonyms(word) {
+        return this.synonyms[word] || [];
+    }
+
+    // फ़ज़ी स्कोर: दो शब्दों के बीच समानता का स्कोर (Levenshtein दूरी के आधार पर)
+    fuzzyScore(s1, s2) {
+        s1 = s1.toLowerCase();
+        s2 = s2.toLowerCase();
+        // Levenshtein distance निकालें
+        const dist = this.levenshtein(s1, s2);
+        const maxLen = Math.max(s1.length, s2.length);
+        if (maxLen === 0) return 1.0; // दोनों शब्द खाली हैं
+        // समानता को [0,1] रेंज में परिवर्तित करें
+        return (maxLen - dist) / maxLen;
+    }
+
+    // Levenshtein distance: दो स्ट्रिंग के बीच संपादन दूरी की गणना
+    levenshtein(a, b) {
+        const dp = [];
+        // प्रारंभिक स्थिति सेटअप
+        for (let i = 0; i <= a.length; i++) {
+            dp[i] = [i];
+        }
+        for (let j = 1; j <= b.length; j++) {
+            dp[0][j] = j;
+        }
+        // DP मैट्रिक्स भरें
+        for (let i = 1; i <= a.length; i++) {
+            for (let j = 1; j <= b.length; j++) {
+                if (a[i - 1] === b[j - 1]) {
+                    dp[i][j] = dp[i - 1][j - 1]; // कोई बदलाव नहीं
+                } else {
+                    dp[i][j] = Math.min(
+                        dp[i - 1][j] + 1,    // delete
+                        dp[i][j - 1] + 1,    // insert
+                        dp[i - 1][j - 1] + 1 // replace
+                    );
+                }
+            }
+        }
+        return dp[a.length][b.length];
+    }
+}
