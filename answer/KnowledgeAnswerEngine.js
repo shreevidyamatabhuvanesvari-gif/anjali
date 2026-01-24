@@ -1,97 +1,72 @@
-/* ==========================================================
-   KnowledgeAnswerEngine.js — Core for retrieving saved Q/A
-   ========================================================== */
-(function () {
+/* =========================================================
+   core/AnswerEngine.js
+   Role: Read + Match + Balanced Answer Engine (OFFLINE)
+   Safe: Does NOT modify existing systems
+   ========================================================= */
+(function (window) {
   "use strict";
 
-  let initialized = false;
-  let knowledgeIndex = [];
-
-  function normalize(text) {
-    return String(text || "")
-      .toLowerCase()
-      .replace(/[^\p{L}\p{N}\s]/gu, " ")
-      .replace(/\s+/g, " ")
-      .trim();
+  if (!window.KnowledgeBase) {
+    console.error("AnswerEngine: KnowledgeBase missing");
+    return;
   }
 
-  function tokenize(text) {
-    return normalize(text)
-      .split(" ")
-      .filter(w => w.length > 2);
-  }
+  const AnswerEngine = {
 
-  async function loadKnowledge() {
-    if (initialized) return;
-    initialized = true;
-    if (!window.KnowledgeBase || typeof KnowledgeBase.getAll !== "function") {
-      console.warn("⚠️ KnowledgeBase.getAll() उपलब्ध नहीं");
-      return;
-    }
-    let all = [];
-    try {
-      all = await KnowledgeBase.getAll(); // Fetch all saved Q/A
-    } catch (e) {
-      console.error("❌ KnowledgeBase.getAll() failed", e);
-      return;
-    }
-    if (!Array.isArray(all)) {
-      console.warn("⚠️ Knowledge data invalid");
-      return;
-    }
-    all.forEach(item => {
-      if (!item || !item.question || !item.answer) return;
-      const combinedText = item.question + " " + item.answer;
-      knowledgeIndex.push({
-        source: "KnowledgeBase",
-        content: item.answer,
-        tokens: tokenize(combinedText)
-      });
-    });
-    console.log("📚 Indexed Knowledge records:", knowledgeIndex.length);
-  }
-
-  function scoreMatch(queryTokens, entryTokens) {
-    let hits = 0;
-    queryTokens.forEach(t => {
-      if (entryTokens.includes(t)) hits++;
-    });
-    return hits / Math.max(queryTokens.length, 1);
-  }
-
-  async function retrieve(query) {
-    await loadKnowledge();  // सुनिश्चित करें कि डेटा लोड है
-    if (!knowledgeIndex.length) return null;
-    const qTokens = tokenize(query);
-    if (!qTokens.length) return null;
-    let best = null;
-    let bestScore = 0;
-    knowledgeIndex.forEach(entry => {
-      const score = scoreMatch(qTokens, entry.tokens);
-      if (score > bestScore) {
-        bestScore = score;
-        best = entry;
+    // ---------- MAIN ANSWER ----------
+    async answer(questionText) {
+      if (!questionText) {
+        return "मैं प्रश्न समझ नहीं पाई।";
       }
-    });
-    if (!best || bestScore < 0.15) {
-      return null;  // कोई उपयुक्त मिलान नहीं मिला
-    }
-    return {
-      content: best.content,
-      relevance: Number(bestScore.toFixed(2)),
-      source: best.source
-    };
-  }
 
-  window.KnowledgeAnswerEngine = Object.freeze({
-    retrieve,
-    status() {
-      return {
-        indexed: knowledgeIndex.length,
-        initialized,
-        role: "knowledge-answer-engine",
-        level: "4.x-corrected"
-      };
+      await KnowledgeBase.init();
+      const knowledge = await KnowledgeBase.getAll();
+
+      if (!knowledge || knowledge.length === 0) {
+        return "मेरे ज्ञान में अभी कुछ भी सुरक्षित नहीं है।";
+      }
+
+      const q = questionText.toLowerCase();
+
+      // 1️⃣ Exact / Partial Match
+      const direct = knowledge.find(k =>
+        q.includes(k.question.toLowerCase()) ||
+        k.question.toLowerCase().includes(q)
+      );
+
+      if (direct) {
+        return direct.answer;
+      }
+
+      // 2️⃣ Similarity Match (keyword based)
+      const scored = knowledge
+        .map(k => {
+          let score = 0;
+          const words = k.question.toLowerCase().split(/\s+/);
+          words.forEach(w => {
+            if (q.includes(w)) score++;
+          });
+          return { ...k, score };
+        })
+        .filter(k => k.score > 0)
+        .sort((a, b) => b.score - a.score);
+
+      if (scored.length > 0) {
+        // संतुलित उत्तर
+        const top = scored.slice(0, 2);
+        return top.map(k => k.answer).join(" ");
+      }
+
+      // 3️⃣ Nothing matched
+      return "इस प्रश्न का उत्तर मेरे ज्ञान में नहीं है।";
     }
+  };
+
+  // ---------- EXPOSE ----------
+  Object.defineProperty(window, "AnswerEngine", {
+    value: AnswerEngine,
+    writable: false,
+    configurable: false
   });
-})();
+
+})(window);
