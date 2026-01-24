@@ -97,24 +97,32 @@
 
   <div class="footer">Foundation • Stage-1</div>
 
-  <!-- ========== CORE SYSTEM ========== -->
-<script src="core/AnjaliCore.js"></script>
-<script src="core/KnowledgeBase.js"></script>
-<script src="core/ReasoningEngine.js"></script>
-<script src="core/KnowledgeAnswerEngine.js"></script>
-<script src="core/AnswerEngine.js"></script>
-<script src="core/ResponseEngine.js"></script>
+  <!-- ========== CORE ========== -->
+  <script src="core/AnjaliCore.js"></script>
 
-<!-- ========== VOICE ========== -->
-<script src="voice/tts.js"></script>
-<script src="voice/stt.js"></script>
-<script src="voice/STT_LongListening.js"></script>
+  <!-- ========== MEMORY ========== -->
+  <script src="core/ContextMemory.js"></script>
+  <script src="learning/ExperienceMemory.js"></script>
+  <script src="learning/KnowledgeBase.js"></script>
 
-<!-- ========== PRESENCE ========== -->
-<script src="core/AnswerEngine.js"></script>
-<script src="core/ResponseEngine.js"></script>
+  <!-- ========== KNOWLEDGE ========== -->
+  <script src="answer/RawKnowledgeReader.js"></script>
+  <script src="answer/KnowledgeAnswerEngine.js"></script>
+
+  <!-- ========== THINKING ========== -->
+  <script src="core/ReasoningEngine.js"></script>
+
+  <!-- ========== RESPONSE ========== -->
+  <script src="response/ResponseEngine.js"></script>
+
+  <!-- ========== VOICE ========== -->
+  <script src="voice/tts.js"></script>
+  <script src="voice/stt.js"></script>
+  <script src="voice/STT_LongListening.js"></script>
+
+  <!-- ========== PRESENCE ========== -->
   <script src="presence/AnjaliPresence.js"></script>
-  
+
   <!-- 🌸 System Monitor -->
   <div class="footer">
     <button onclick="openSystemStatus()" class="btn secondary">
