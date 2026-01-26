@@ -75,9 +75,9 @@
 <body>
 <main class="card">
 
-  <!-- 🔐 PASSWORD GATE (ADDED – मूल कोड से अलग) -->
+  <!-- 🔐 PASSWORD GATE (ADDED) -->
   <div id="passwordGate" class="status">
-    <b>🔐 प्रवेश पासवर्ड (10 अंक)</b><br><br>
+    <b>🔐 10 अंकों का पासवर्ड</b><br><br>
     <input
       type="password"
       id="passwordInput"
@@ -98,10 +98,7 @@
   <div class="title">अंजली</div>
   <div class="subtitle">स्नेहपूर्ण • समझदार • मर्यादित</div>
 
-  <!-- STATUS -->
   <div class="status" id="appStatus">अंजली तैयार है</div>
-
-  <!-- EMOTION INDICATOR -->
   <div class="status" id="emotionStatus">भाव: 😌 शांत</div>
 
   <div class="actions">
@@ -113,7 +110,7 @@
 
   <div class="footer">Foundation • Stage-1</div>
 
-  <!-- ========== CORE ========== -->
+  <!-- ========== CORE SCRIPTS (UNCHANGED) ========== -->
   <script src="core/AnjaliCore.js"></script>
   <script src="core/ContextMemory.js"></script>
   <script src="learning/ExperienceMemory.js"></script>
@@ -127,7 +124,6 @@
   <script src="voice/STT_LongListening.js"></script>
   <script src="presence/AnjaliPresence.js"></script>
 
-  <!-- 🌸 System Monitor -->
   <div class="footer">
     <button onclick="openSystemStatus()" class="btn secondary">🌸 System Status</button>
     <br><br>
@@ -149,10 +145,10 @@
     };
   </script>
 
-  <!-- 🔐 PASSWORD LOGIC (ADDED – SAFE & ISOLATED) -->
+  <!-- 🔐 PASSWORD LOGIC (USER-DEFINED) -->
   <script>
-    const ANJALI_PASSWORD = "7394826150"; // 🔐 10 अंकों का पासवर्ड
-    const PASS_KEY = "ANJALI_ACCESS_OK";
+    const ACCESS_KEY = "ANJALI_ACCESS_OK";
+    const PASSWORD_KEY = "ANJALI_USER_PASSWORD";
 
     function verifyPassword(){
       const v = document.getElementById("passwordInput").value.trim();
@@ -162,28 +158,37 @@
         msg.textContent = "❌ 10 अंकों का पासवर्ड लिखें";
         return;
       }
-      if(v === ANJALI_PASSWORD){
-        localStorage.setItem(PASS_KEY,"YES");
-        unlockAccess();
+
+      const saved = localStorage.getItem(PASSWORD_KEY);
+
+      if(!saved){
+        localStorage.setItem(PASSWORD_KEY, v);
+        localStorage.setItem(ACCESS_KEY, "YES");
+        unlock();
+        return;
+      }
+
+      if(v === saved){
+        localStorage.setItem(ACCESS_KEY, "YES");
+        unlock();
       }else{
         msg.textContent = "❌ गलत पासवर्ड";
       }
     }
 
-    function unlockAccess(){
+    function unlock(){
       document.getElementById("startBtn").disabled = false;
       document.getElementById("adminBtn").disabled = false;
-      document.getElementById("passwordGate").style.display="none";
+      document.getElementById("passwordGate").style.display = "none";
     }
 
     window.addEventListener("load",()=>{
-      if(localStorage.getItem(PASS_KEY)==="YES"){
-        unlockAccess();
+      if(localStorage.getItem(ACCESS_KEY)==="YES"){
+        unlock();
       }
     });
   </script>
 
-  <!-- ========== MAIN ========== -->
   <script src="main.js"></script>
 </main>
 </body>
